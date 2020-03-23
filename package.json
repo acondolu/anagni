@@ -1,0 +1,24 @@
+{
+  "name": "anagni",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/acondolu/anagni.git"
+  },
+  "author": "",
+  "bugs": {
+    "url": "https://github.com/acondolu/anagni/issues"
+  },
+  "homepage": "https://github.com/acondolu/anagni#readme",
+  "dependencies": {
+    "google-closure-compiler": "^20200315.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^3.8.3"
+  }
+}
