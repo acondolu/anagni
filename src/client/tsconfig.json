@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": "../../build/client",
+    "outDir": "../../build/",
     "module": "ES6",
     "moduleResolution": "classic"
   }

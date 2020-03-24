@@ -11,16 +11,16 @@ type Table = {
   sockets: Set<Socket>;
 };
 
-enum SocketState {
-  Idle,
-  Streaming,
-  Delete,
-}
 type User = {
   secret: string;
   sockets: Set<Socket>;
 };
 
+enum SocketState {
+  Idle,
+  Streaming,
+  Delete,
+}
 type SocketInfo = {
   uid: UserId;
   user: User;
@@ -38,6 +38,7 @@ export class Server {
     this.tables = new Map();
     this.users = new Map();
     this.sockets = new Map();
+    Object.seal(this);
   }
 
   connection(socket: Socket) {
@@ -50,7 +51,7 @@ export class Server {
     });
   }
 
-  async sendMoreAux(table: Table, socket: Socket, info: SocketInfo) {
+  private async sendMoreAux(table: Table, socket: Socket, info: SocketInfo) {
     switch (info.state) {
       case SocketState.Idle:
         throw new Error("Idle state is not possible");
@@ -69,7 +70,7 @@ export class Server {
     }
   }
 
-  emitUpdate(table: Table) {
+  private emitUpdate(table: Table) {
     for (const socket of table.sockets.keys()) {
       const info = this.sockets.get(socket);
       if (info.state == SocketState.Idle) {
@@ -166,8 +167,7 @@ export class Server {
     info.tid = tid;
     info.lastSent = lastKnownMsg;
 
-    // // user on the same table, but leave other tables untouched
-    const lastYours: Index = table.lastUserMsg.get(info.uid); // fixme retreve from users[uid][tid];
+    const lastYours: Index = table.lastUserMsg.get(info.uid);
     const lastMsg: Index = table.log.length - 1;
     if (lastMsg > lastKnownMsg + 1) {
       if (info.state != SocketState.Idle)
