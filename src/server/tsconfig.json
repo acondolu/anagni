@@ -1,0 +1,7 @@
+{
+  "extends": "../../tsconfig.json",
+  "outDir": "../../build/server",
+  "module": "node",
+  "moduleResolution": "node",
+  "include": ["./"],
+}

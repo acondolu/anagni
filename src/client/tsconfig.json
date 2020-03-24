@@ -1,0 +1,7 @@
+{
+  "extends": "../../tsconfig.json",
+  "outDir": "../../build/client",
+  "module": "commonjs",
+  "moduleResolution": "classic",
+  "include": ["./"],
+}
