@@ -84,24 +84,22 @@ export class Server {
     let socketInfo: SocketInfo = this.sockets.get(socket);
     if (!!socketInfo.uid) {
       const response: ErrorMessage = {
-        type: MessageTypes.Error,
         errorType: MessageTypes.Login,
         reason: "Already logged in",
         no: msg.no,
       };
-      return socket.emit("error", response);
+      return socket.emit("err", response);
     }
     let uid = msg.uid;
     let user: User = this.users[uid];
     if (user) {
       if (user.secret != msg.secret) {
         const response: ErrorMessage = {
-          type: MessageTypes.Error,
           errorType: MessageTypes.Login,
           reason: "Wrong secret",
           no: msg.no,
         };
-        return socket.emit("error", response);
+        return socket.emit("err", response);
       }
     } else {
       user = {
@@ -114,7 +112,6 @@ export class Server {
     socketInfo.user = user;
     user.sockets.add(socket);
     const response: OkayLoginMessage = {
-      type: MessageTypes.Okay,
       okayType: MessageTypes.Login,
       no: msg.no,
     };
@@ -125,21 +122,19 @@ export class Server {
     let info = this.sockets.get(socket);
     if (!info.uid) {
       const response: ErrorMessage = {
-        type: MessageTypes.Error,
         errorType: MessageTypes.Login,
         reason: "Must login first",
         no: msg.no,
       };
-      return socket.emit("error", response);
+      return socket.emit("err", response);
     }
     if (!!info.tid) {
       const response: ErrorMessage = {
-        type: MessageTypes.Error,
         errorType: MessageTypes.Enter,
         reason: "Already entered",
         no: msg.no,
       };
-      return socket.emit("error", response);
+      return socket.emit("err", response);
     }
     const { tid, lastKnownMsg } = msg;
     let user: User = info.user;
@@ -155,12 +150,11 @@ export class Server {
       if (info.tid == tid) {
         // Close previous socket
         const response: ErrorMessage = {
-          type: MessageTypes.Error,
           errorType: MessageTypes.Enter,
           reason: "New connection",
           no: msg.no,
         };
-        s.emit("error", response);
+        s.emit("err", response);
         s.disconnect();
       }
     }
@@ -176,7 +170,6 @@ export class Server {
       this.sendMoreAux(table, socket, info);
     }
     let answer: OkayEnterMessage = {
-      type: MessageTypes.Okay,
       okayType: MessageTypes.Enter,
       lastYours,
       lastMsg,
@@ -190,12 +183,11 @@ export class Server {
     const tid = info.tid;
     if (!tid) {
       const response: ErrorMessage = {
-        type: MessageTypes.Error,
         errorType: MessageTypes.Append,
         reason: "Enter first",
         no: -1,
       };
-      return socket.emit("error", response);
+      return socket.emit("err", response);
     }
     const table: Table = this.tables.get(tid);
     msg.index = table.log.length;
