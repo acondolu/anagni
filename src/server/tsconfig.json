@@ -1,7 +1,8 @@
 {
   "extends": "../../tsconfig.json",
-  "outDir": "../../build/server",
-  "module": "node",
-  "moduleResolution": "node",
-  "include": ["./"],
+  "compilerOptions": {
+    "outDir": "../../build/server/",
+    "module": "ES6",
+    "moduleResolution": "node"
+  }
 }
