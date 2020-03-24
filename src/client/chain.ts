@@ -1,8 +1,7 @@
-const io = require('socket.io-client');
+const io = require("socket.io-client");
 import "types/messages";
 
 type Callback = (msg: AppendMessage, replay: boolean) => void;
-
 
 /*
 var socket = io('localhost', 8080);
@@ -23,7 +22,12 @@ class Chain {
   chain: Array<AppendMessage>;
   socket: SocketIOClient.Socket;
 
-  constructor(server: string, chainId: string, secret: string, callback: Callback) {
+  constructor(
+    server: string,
+    chainId: string,
+    secret: string,
+    callback: Callback
+  ) {
     this.server = server;
     this.chainId = chainId;
     this.secret = secret;
@@ -44,9 +48,11 @@ class Chain {
   }
 
   connect() {
-    this.socket = io.connect('http://localhost:8080');
-    this.socket.on("connnect", () => {console.log("CONNECTED");})
-    this.socket.emit('chat_message', "hello");
+    this.socket = io.connect("http://localhost:8080");
+    this.socket.on("connnect", () => {
+      console.log("CONNECTED");
+    });
+    this.socket.emit("chat_message", "hello");
     // // TODO: first message:
     // socket.onmessage = function (event) {
     //   this.onmessage(JSON.parse(event.data));
