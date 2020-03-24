@@ -24,6 +24,7 @@
   "devDependencies": {
     "@types/socket.io": "^2.1.4",
     "@types/socket.io-client": "^1.4.32",
+    "prettier": "^2.0.2",
     "typescript": "^3.8.3"
   }
 }
