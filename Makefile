@@ -22,4 +22,4 @@ test: tsc
 
 clean:
 	rm -f dist/*.js
-	rm -rf build/client build/server
+	rm -rf build

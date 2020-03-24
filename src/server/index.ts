@@ -19,5 +19,4 @@ class SocketIOServer extends Server {
     });
     Object.freeze(this);
   }
-
 }
