@@ -17,7 +17,7 @@ compile:
 prettier:
 	npx prettier --write src/
 
-test:
+test: tsc
 	npx prettier --check src/
 
 clean:

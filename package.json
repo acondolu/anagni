@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node dist/server.js",
     "build": "make build",
-    "dist": "make dist"
+    "dist": "make dist",
+    "test": "make test"
   },
   "repository": {
     "type": "git",
