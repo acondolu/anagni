@@ -1,4 +1,4 @@
-# anagni
+# anagni [![Build Status](https://travis-ci.com/acondolu/anagni.svg?token=KEjzsAkTQF4oSVN4fngW&branch=master)](https://travis-ci.com/acondolu/anagni)
 
 ## Building
 ```

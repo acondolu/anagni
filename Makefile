@@ -4,7 +4,7 @@ build: tsc compile
 
 tsc:
 	npx tsc --project src/server/tsconfig.json
-	npx tsc --project src/client/tsconfig.json
+	# npx tsc --project src/client/tsconfig.json
 
 compile:
 	npx google-closure-compiler --module_resolution=NODE --js=build/server/*.js --js_output_file=dist/server.js --entry_point ./build/server/index.js \
