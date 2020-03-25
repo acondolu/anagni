@@ -3,6 +3,7 @@
   "compilerOptions": {
     "outDir": "../../build/",
     "module": "ES6",
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true
   }
 }

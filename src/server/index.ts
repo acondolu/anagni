@@ -1,11 +1,11 @@
-import * as SocketIO from "socket.io";
+import ServerIO from "socket.io";
 import { Server } from "./server.js";
 
 class SocketIOServer extends Server {
   constructor(port: number = 8080) {
     super();
 
-    const io: SocketIO.Server = SocketIO({
+    const io: SocketIO.Server = ServerIO({
       "heartbeat interval": 5,
       "heartbeat timeout": 60,
     }).listen(port);
