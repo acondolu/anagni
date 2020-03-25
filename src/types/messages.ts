@@ -3,7 +3,7 @@ export type RoomId = string;
 export type Index = number;
 
 // Access control
-export enum AccessControlMode {
+export const enum AccessControlMode {
   Only,
   Except,
 }
