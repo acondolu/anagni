@@ -1,16 +1,6 @@
 const io = require("socket.io-client");
 import "types/messages";
 
-type Packet = string;
-
-interface State {}
-
-interface Brain {
-  getInitialState: () => State;
-  getCurrentIndex: () => number;
-  step: (p: Packet) => Packet | null;
-}
-
 enum ClientState {
   Disconnected,
   Connected,
@@ -18,18 +8,24 @@ enum ClientState {
   Joined,
 }
 
+type Message = {};
+type Game = Transition<Message, Message>;
+
 export class Client {
-  brain: Brain;
+  game: Game;
   addr: string;
   auth: string;
   state: ClientState;
   socket: SocketIOClient.Socket;
 
   fastForwardUntil: number;
-  results: Array<any>;
+  results: Array<Message>;
 
-  constructor(addr: string, auth: string, brain: Brain) {
-    this.brain = brain;
+  counter: number;
+  queue: Array<Message>;
+
+  constructor(addr: string, auth: string, game: Game) {
+    this.game = game;
     this.addr = addr;
     this.auth = auth;
     this.state = ClientState.Disconnected;
@@ -86,7 +82,7 @@ export class Client {
 
   private append(m: any) {
     const index = 666;
-    const result = this.brain.step(m);
+    const result = this.game(m);
     if (result) {
       if (this.fastForwardUntil > index) {
         // Fast-forward mode
@@ -97,24 +93,3 @@ export class Client {
     }
   }
 }
-/*
-
-this.socket = io.connect("http://localhost:8080");
-    this.socket.on("connnect", () => {
-      console.log("CONNECTED");
-    });
-    this.socket.emit("chat_message", "hello");
-
-
-var socket = io.connect("http://localhost:8080");
-socket.on("connect", () => {
-  console.log("C", socket.connected); // false
-});
-socket.emit("login", { uid: "ciao" });
-socket.on("okay", (m) => {
-  console.log("okay", m);
-});
-window.f = function () {
-  socket.emit("login", { uid: "ciao" });
-};
-*/

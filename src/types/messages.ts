@@ -54,3 +54,8 @@ type ErrorMessage = {
   reason: string;
   no: number;
 };
+
+type SHA256Message = {
+  salt: string;
+  payload: string;
+};

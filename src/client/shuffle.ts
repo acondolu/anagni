@@ -1,5 +1,5 @@
-type Card = Array<number>;
-type Deck = Array<Card>;
+type CardN = Array<number>;
+type Deck = Array<CardN>;
 const realDeck: Deck = [
   [0, 0],
   [0, 0],
