@@ -1,5 +1,5 @@
-const io = require("socket.io-client");
-import "types/messages";
+import "socket.io-client";
+import "../types/messages.js";
 
 enum ClientState {
   Disconnected,
