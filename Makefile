@@ -1,18 +1,22 @@
 .PHONY: tsc compile build prettier test dist
 
+TSC = npx tsc
+PRETTIER = npx prettier
+NODE = node --experimental-modules
+
 build: tsc
 
 tsc:
-	npx tsc --project src/server/tsconfig.json
-	npx tsc --project src/client/tsconfig.json
+	$(TSC) --project src/server/tsconfig.json
+	$(TSC) --project src/client/tsconfig.json
 
 prettier:
-	npx prettier --write src/
+	$(PRETTIER) --write src/
 
 test:
-	npx prettier --check src/
-	node --experimental-modules build/server/index.js
-	node --experimental-modules build/client/main.js
+	$(PRETTIER) --check src/
+	$(NODE) build/server/main.js
+	$(NODE) build/client/main.js
 
 dist:
 	cp -r build dist
