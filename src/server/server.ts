@@ -5,7 +5,7 @@ interface Socket {
   disconnect: () => void;
 }
 
-type Table = {
+type Room = {
   log: Array<Readonly<AppendMessage>>;
   lastUserMsg: Map<UserId, Index>;
   sockets: Set<Socket>;
@@ -24,18 +24,18 @@ enum SocketState {
 type SocketInfo = {
   uid: UserId;
   user: User;
-  tid: TableId;
+  rid: RoomId;
   state: SocketState;
   lastSent: Index;
 };
 
 export class Server {
-  tables: Map<TableId, Table>;
+  rooms: Map<RoomId, Room>;
   users: Map<UserId, User>;
   sockets: Map<Socket, SocketInfo>;
 
   constructor() {
-    this.tables = new Map();
+    this.rooms = new Map();
     this.users = new Map();
     this.sockets = new Map();
     Object.seal(this);
@@ -45,13 +45,13 @@ export class Server {
     this.sockets.set(socket, {
       uid: null,
       user: null,
-      tid: null,
+      rid: null,
       state: SocketState.Idle,
       lastSent: null,
     });
   }
 
-  private async sendMoreAux(table: Table, socket: Socket, info: SocketInfo) {
+  private async sendMoreAux(room: Room, socket: Socket, info: SocketInfo) {
     switch (info.state) {
       case SocketState.Idle:
         throw new Error("Idle state is not possible");
@@ -59,23 +59,23 @@ export class Server {
         this.freeSocket(socket, info);
         break;
       case SocketState.Streaming:
-        let log = table.log;
+        let log = room.log;
         if (log.length > info.lastSent + 1) {
           // Send one more message
           socket.emit("append", log[log.length - 1]);
-          this.sendMoreAux(table, socket, info);
+          this.sendMoreAux(room, socket, info);
         } else {
           info.state = SocketState.Idle;
         }
     }
   }
 
-  private emitUpdate(table: Table) {
-    for (const socket of table.sockets.keys()) {
+  private emitUpdate(room: Room) {
+    for (const socket of room.sockets.keys()) {
       const info = this.sockets.get(socket);
       if (info.state == SocketState.Idle) {
         info.state = SocketState.Streaming;
-        this.sendMoreAux(table, socket, info);
+        this.sendMoreAux(room, socket, info);
       }
     }
   }
@@ -112,13 +112,13 @@ export class Server {
     socketInfo.user = user;
     user.sockets.add(socket);
     const response: OkayLoginMessage = {
-      okayType: MessageTypes.Login,
+      okay: MessageTypes.Login,
       no: msg.no,
     };
     return socket.emit("okay", response);
   }
 
-  enter(socket: Socket, msg: EnterMessage) {
+  join(socket: Socket, msg: JoinMessage) {
     let info = this.sockets.get(socket);
     if (!info.uid) {
       const response: ErrorMessage = {
@@ -128,7 +128,7 @@ export class Server {
       };
       return socket.emit("err", response);
     }
-    if (!!info.tid) {
+    if (!!info.rid) {
       const response: ErrorMessage = {
         errorType: MessageTypes.Enter,
         reason: "Already entered",
@@ -136,18 +136,18 @@ export class Server {
       };
       return socket.emit("err", response);
     }
-    const { tid, lastKnownMsg } = msg;
+    const { rid, lastKnownMsg } = msg;
     let user: User = info.user;
-    // Check tid
-    let table = this.tables[tid];
-    if (!table) {
-      // Create table
-      table = { log: [], lastUserMsg: new Map() };
-      this.tables[tid] = table;
+    // Check rid
+    let room = this.rooms[rid];
+    if (!room) {
+      // Create room
+      room = { log: [], lastUserMsg: new Map() };
+      this.rooms[rid] = room;
     }
     for (const s of user.sockets.keys()) {
       const info = this.sockets.get(s);
-      if (info.tid == tid) {
+      if (info.rid == rid) {
         // Close previous socket
         const response: ErrorMessage = {
           errorType: MessageTypes.Enter,
@@ -158,19 +158,19 @@ export class Server {
         s.disconnect();
       }
     }
-    info.tid = tid;
+    info.rid = rid;
     info.lastSent = lastKnownMsg;
 
-    const lastYours: Index = table.lastUserMsg.get(info.uid);
-    const lastMsg: Index = table.log.length - 1;
+    const lastYours: Index = room.lastUserMsg.get(info.uid);
+    const lastMsg: Index = room.log.length - 1;
     if (lastMsg > lastKnownMsg + 1) {
       if (info.state != SocketState.Idle)
         throw new Error("Not idle, impossible.");
       info.state = SocketState.Streaming;
-      this.sendMoreAux(table, socket, info);
+      this.sendMoreAux(room, socket, info);
     }
     let answer: OkayEnterMessage = {
-      okayType: MessageTypes.Enter,
+      okay: MessageTypes.Enter,
       lastYours,
       lastMsg,
       no: msg.no,
@@ -180,8 +180,8 @@ export class Server {
 
   append(socket: Socket, msg: AppendMessage) {
     const info = this.sockets.get(socket);
-    const tid = info.tid;
-    if (!tid) {
+    const rid = info.rid;
+    if (!rid) {
       const response: ErrorMessage = {
         errorType: MessageTypes.Append,
         reason: "Enter first",
@@ -189,11 +189,11 @@ export class Server {
       };
       return socket.emit("err", response);
     }
-    const table: Table = this.tables.get(tid);
-    msg.index = table.log.length;
-    table.log.push(Object.freeze(msg));
-    table.lastUserMsg.set(info.uid, msg.index);
-    this.emitUpdate(table);
+    const room: Room = this.rooms.get(rid);
+    msg.index = room.log.length;
+    room.log.push(Object.freeze(msg));
+    room.lastUserMsg.set(info.uid, msg.index);
+    this.emitUpdate(room);
   }
 
   disconnect(socket: Socket, reason: string) {
@@ -212,7 +212,7 @@ export class Server {
     this.sockets.delete(socket);
     const user = info.user;
     if (user) user.sockets.delete(socket);
-    const tid = info.tid;
-    if (tid) this.tables[tid].sockets.delete(socket);
+    const rid = info.rid;
+    if (rid) this.rooms[rid].sockets.delete(socket);
   }
 }

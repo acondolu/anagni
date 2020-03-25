@@ -1,12 +1,31 @@
 type UserId = string;
-type TableId = string;
+type RoomId = string;
 type Index = number;
 
 // Access control
 enum AccessControlMode {
   Only,
-  AllBut,
+  Except,
 }
+
+type LoginMessage = {
+  uid: UserId;
+  secret: string;
+  no: number;
+};
+type JoinMessage = {
+  rid: RoomId;
+  lastKnownMsg: Index;
+  no: number;
+};
+// type LeaveMessage = { rid: RoomId; no: number };
+type AppendMessage = {
+  index: Index;
+  uid: UserId;
+  node: AccessControlMode;
+  accessControlList: Array<UserId>;
+  payload: string;
+};
 
 enum MessageTypes {
   Login,
@@ -16,37 +35,18 @@ enum MessageTypes {
   Okay,
   Error,
 }
-type LoginMessage = {
-  uid: UserId;
-  secret: string;
-  no: number;
-};
-type EnterMessage = {
-  tid: TableId;
-  lastKnownMsg: Index;
-  no: number;
-};
-type ExitMessage = { type: MessageTypes.Exit; tid: TableId; no: number };
-type AppendMessage = {
-  index: Index;
-  uid: UserId;
-  node: AccessControlMode;
-  accessControlList: Array<UserId>;
-  payload: string;
-};
-
 type OkayLoginMessage = {
-  okayType: MessageTypes.Login;
+  okay: MessageTypes.Login;
   no: number;
 };
 type OkayEnterMessage = {
-  okayType: MessageTypes.Enter;
+  okay: MessageTypes.Enter;
   lastYours: Index;
   lastMsg: Index;
   no: number;
 };
 type OkayExitMessage = {
-  okayType: MessageTypes.Exit;
+  okay: MessageTypes.Exit;
   no: number;
 };
 type ErrorMessage = {

@@ -13,7 +13,7 @@ class SocketIOServer extends Server {
     io.sockets.on("connection", (socket: SocketIO.Socket) => {
       this.connection(socket);
       socket.on("login", (msg: LoginMessage) => this.login(socket, msg));
-      socket.on("enter", (msg: EnterMessage) => this.enter(socket, msg));
+      socket.on("join", (msg: JoinMessage) => this.join(socket, msg));
       socket.on("append", (msg: AppendMessage) => this.append(socket, msg));
       socket.on("disconnect", (reason) => this.disconnect(socket, reason));
     });
