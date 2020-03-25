@@ -1,6 +1,6 @@
-.PHONY = tsc compile build prettier test
+.PHONY: tsc compile build prettier test dist
 
-build: tsc compile
+build: tsc
 
 tsc:
 	npx tsc --project src/server/tsconfig.json
@@ -17,11 +17,16 @@ compile:
 prettier:
 	npx prettier --write src/
 
-test: tsc
+test:
 	npx prettier --check src/
 	node --experimental-modules build/server/index.js
 	node --experimental-modules build/client/main.js
 
+dist:
+	cp -r build dist
+	cp src/client/static/* dist/client/
+
+
 clean:
-	rm -f dist/*.js
+	rm -rf dist
 	rm -rf build
