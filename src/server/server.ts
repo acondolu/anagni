@@ -96,19 +96,17 @@ export class Server {
     if (!!socketInfo.uid) {
       const response: ErrorMessage = {
         errorType: MessageTypes.Login,
-        reason: "Already logged in",
-        no: msg.no,
+        reason: "Already logged in"
       };
       return socket.emit("err", response);
     }
     let uid = msg.uid;
-    let user: User = this.users[uid];
+    let user: User = this.users.get(uid);
     if (user) {
       if (user.secret != msg.secret) {
         const response: ErrorMessage = {
           errorType: MessageTypes.Login,
           reason: "Wrong secret",
-          no: msg.no,
         };
         return socket.emit("err", response);
       }
@@ -124,7 +122,6 @@ export class Server {
     user.sockets.add(socket);
     const response: OkayLoginMessage = {
       okay: MessageTypes.Login,
-      no: msg.no,
     };
     return socket.emit("okay", response);
   }
@@ -135,7 +132,6 @@ export class Server {
       const response: ErrorMessage = {
         errorType: MessageTypes.Login,
         reason: "Must login first",
-        no: msg.no,
       };
       return socket.emit("err", response);
     }
@@ -143,18 +139,17 @@ export class Server {
       const response: ErrorMessage = {
         errorType: MessageTypes.Enter,
         reason: "Already entered",
-        no: msg.no,
       };
       return socket.emit("err", response);
     }
     const { rid, lastKnownMsg } = msg;
     let user: User = info.user;
     // Check rid
-    let room = this.rooms[rid];
+    let room = this.rooms.get(rid);
     if (!room) {
       // Create room
-      room = { log: [], userMessagesCount: new Map() };
-      this.rooms[rid] = room;
+      room = { log: [], userMessagesCount: new Map(), sockets: new Set() };
+      this.rooms.set(rid, room);
     }
     for (const s of user.sockets.keys()) {
       const info = this.sockets.get(s);
@@ -163,7 +158,6 @@ export class Server {
         const response: ErrorMessage = {
           errorType: MessageTypes.Enter,
           reason: "New connection",
-          no: msg.no,
         };
         s.emit("err", response);
         s.disconnect();
@@ -188,7 +182,6 @@ export class Server {
       okay: MessageTypes.Enter,
       yourCount: yourCount,
       totalCount: lastMsg,
-      no: msg.no,
     };
     socket.emit("welcome", answer);
   }
@@ -200,7 +193,6 @@ export class Server {
       const response: ErrorMessage = {
         errorType: MessageTypes.Append,
         reason: "Enter first",
-        no: -1,
       };
       return socket.emit("err", response);
     }
@@ -231,6 +223,6 @@ export class Server {
     const user = info.user;
     if (user) user.sockets.delete(socket);
     const rid = info.rid;
-    if (rid) this.rooms[rid].sockets.delete(socket);
+    if (rid) this.rooms.get(rid).sockets.delete(socket);
   }
 }

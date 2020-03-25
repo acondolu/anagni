@@ -71,18 +71,21 @@
         </div>
       </div>
     </div>
-    <script>
-      var socket = io.connect("http://localhost:8080");
-      socket.on("connect", () => {
-        console.log("C", socket.connected); // false
-      });
-      socket.emit("login", { uid: "ciao" });
-      socket.on("okay", (m) => {
-        console.log("okay", m);
-      });
-      window.f = function () {
-        socket.emit("login", { uid: "ciao" });
-      };
+    <script type="module">
+      import {Client} from "./controller.js";
+      // var socket = io.connect("http://localhost:8080");
+      // socket.on("connect", () => {
+      //   console.log("C", socket.connected); // false
+      // });
+      // socket.emit("login", { uid: "ciao" });
+      // socket.on("okay", (m) => {
+      //   console.log("okay", m);
+      // });
+      // window.f = function () {
+      //   socket.emit("login", { uid: "ciao" });
+      // };
+      let x = new Client("http://localhost:8080", {uid: "ciao", secret: "hello"}, {rid: "ciao"}, null);
+      x.connect();
     </script>
   </body>
 </html>

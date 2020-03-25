@@ -1,6 +1,4 @@
-import "socket.io-client";
-import "../types/messages.js";
-import { LoginMessage } from "../types/messages.js";
+import { LoginMessage, RoomId } from "../types/messages.js";
 
 enum ClientState {
   Disconnected,
@@ -12,10 +10,16 @@ enum ClientState {
 type Message = {};
 type Game = Transition<Message, Message>;
 
+type RoomAuth = {
+  rid: RoomId;
+  secret: string;
+}
+
 export class Client {
   game: Game;
   addr: string;
-  auth: string;
+  auth: LoginMessage;
+  room: RoomAuth;
   state: ClientState;
   socket: SocketIOClient.Socket;
 
@@ -25,11 +29,13 @@ export class Client {
   counter: number;
   queue: Array<Message>;
 
-  constructor(addr: string, auth: string, game: Game) {
+  constructor(addr: string, auth: LoginMessage, room: RoomAuth, game: Game) {
     this.game = game;
     this.addr = addr;
     this.auth = auth;
+    this.room = room;
     this.state = ClientState.Disconnected;
+    console.log("Client");
   }
 
   disconnect() {
@@ -40,12 +46,14 @@ export class Client {
   connect() {
     this.socket = io.connect(this.addr);
     this.socket.on("error", () => {
+      console.log("connected");
       this.state = ClientState.Disconnected;
       this.socket = null;
     });
     this.socket.on("connect", () => {
+      console.log("connected");
       this.state = ClientState.Connected;
-      this.login();
+      this.socket.emit("login", this.auth);
     });
     this.socket.on("err", () => {
       this.state = ClientState.Disconnected;
@@ -53,22 +61,18 @@ export class Client {
     });
     this.socket.on("okay", (m: any) => this.okay(m));
     this.socket.on("append", (m: any) => this.append(m));
-  }
-
-  private login() {
-    const auth: LoginMessage = {
-      uid: "",
-      secret: "",
-      no: -666,
-    };
-    this.socket.emit("login", auth);
+    console.log("connect", this.socket.connected);
   }
 
   private okay(_: any) {
+    console.log("okay", this.state);
     switch (this.state) {
       case ClientState.Connected:
         this.state = ClientState.Logged;
-        this.join();
+        this.socket.emit("join", {
+          rid: this.room.rid,
+          lastKnownMsg: -1, // FIXME: 
+        });
         break;
       case ClientState.Logged:
         this.state = ClientState.Joined;
@@ -76,8 +80,6 @@ export class Client {
         break;
     }
   }
-
-  private join() {}
 
   private done() {}
 
