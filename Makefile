@@ -19,6 +19,8 @@ prettier:
 
 test: tsc
 	npx prettier --check src/
+	nodejs build/server/index.js
+	nodejs build/client/main.js
 
 clean:
 	rm -f dist/*.js

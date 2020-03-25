@@ -41,8 +41,8 @@ type OkayLoginMessage = {
 };
 type OkayEnterMessage = {
   okay: MessageTypes.Enter;
-  lastYours: Index;
-  lastMsg: Index;
+  totalCount: Index;
+  yourCount: Index;
   no: number;
 };
 type OkayExitMessage = {

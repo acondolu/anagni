@@ -1,5 +1,5 @@
 import * as SocketIO from "socket.io";
-import { Server } from "./server";
+import { Server } from "./server.js";
 
 class SocketIOServer extends Server {
   constructor(port: number = 8080) {

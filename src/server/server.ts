@@ -1,4 +1,4 @@
-import "../types/messages";
+import "../types/messages.js";
 
 interface Socket {
   emit: (emit: string, msg: any) => void;
@@ -7,7 +7,7 @@ interface Socket {
 
 type Room = {
   log: Array<Readonly<AppendMessage>>;
-  lastUserMsg: Map<UserId, Index>;
+  userMessagesCount: Map<UserId, Index>;
   sockets: Set<Socket>;
 };
 
@@ -142,7 +142,7 @@ export class Server {
     let room = this.rooms[rid];
     if (!room) {
       // Create room
-      room = { log: [], lastUserMsg: new Map() };
+      room = { log: [], userMessagesCount: new Map() };
       this.rooms[rid] = room;
     }
     for (const s of user.sockets.keys()) {
@@ -161,7 +161,11 @@ export class Server {
     info.rid = rid;
     info.lastSent = lastKnownMsg;
 
-    const lastYours: Index = room.lastUserMsg.get(info.uid);
+    let yourCount: Index = room.userMessagesCount.get(info.uid);
+    if (yourCount == undefined) {
+      yourCount = 0;
+      room.userMessagesCount.set(info.uid, 0);
+    }
     const lastMsg: Index = room.log.length - 1;
     if (lastMsg > lastKnownMsg + 1) {
       if (info.state != SocketState.Idle)
@@ -171,8 +175,8 @@ export class Server {
     }
     let answer: OkayEnterMessage = {
       okay: MessageTypes.Enter,
-      lastYours,
-      lastMsg,
+      yourCount: yourCount,
+      totalCount: lastMsg,
       no: msg.no,
     };
     socket.emit("welcome", answer);
@@ -192,7 +196,10 @@ export class Server {
     const room: Room = this.rooms.get(rid);
     msg.index = room.log.length;
     room.log.push(Object.freeze(msg));
-    room.lastUserMsg.set(info.uid, msg.index);
+    room.userMessagesCount.set(
+      info.uid,
+      room.userMessagesCount.get(info.uid) + 1
+    );
     this.emitUpdate(room);
   }
 
@@ -208,7 +215,7 @@ export class Server {
     }
   }
 
-  freeSocket(socket: Socket, info: SocketInfo) {
+  private freeSocket(socket: Socket, info: SocketInfo) {
     this.sockets.delete(socket);
     const user = info.user;
     if (user) user.sockets.delete(socket);
