@@ -5,6 +5,8 @@ class SocketIOServer extends Server {
   constructor(port: number = 8080) {
     super();
 
+    console.log("Starting server, listening on port", port);
+
     const io: SocketIO.Server = ServerIO({
       "heartbeat interval": 5,
       "heartbeat timeout": 60,

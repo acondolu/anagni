@@ -5,10 +5,10 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node dist/server.js",
+    "start": "node dist/server/main.js",
     "build": "make build",
     "dist": "make dist",
-    "test": "make test"
+    "test": "make build test"
   },
   "repository": {
     "type": "git",
