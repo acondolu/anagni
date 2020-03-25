@@ -1,5 +1,5 @@
 const io = require("socket.io-client");
-import "../types/messages.js";
+import { AppendMessage } from "../types/messages.js";
 
 type Callback = (msg: AppendMessage, replay: boolean) => void;
 

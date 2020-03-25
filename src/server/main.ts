@@ -1,5 +1,6 @@
 import ServerIO from "socket.io";
 import { Server } from "./server.js";
+import { LoginMessage, JoinMessage, AppendMessage } from "messages.js";
 
 class SocketIOServer extends Server {
   constructor(port: number = 8080) {

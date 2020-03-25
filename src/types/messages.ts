@@ -1,25 +1,25 @@
-type UserId = string;
-type RoomId = string;
-type Index = number;
+export type UserId = string;
+export type RoomId = string;
+export type Index = number;
 
 // Access control
-enum AccessControlMode {
+export enum AccessControlMode {
   Only,
   Except,
 }
 
-type LoginMessage = {
+export type LoginMessage = {
   uid: UserId;
   secret: string;
   no: number;
 };
-type JoinMessage = {
+export type JoinMessage = {
   rid: RoomId;
   lastKnownMsg: Index;
   no: number;
 };
 // type LeaveMessage = { rid: RoomId; no: number };
-type AppendMessage = {
+export type AppendMessage = {
   index: Index;
   uid: UserId;
   node: AccessControlMode;
@@ -27,7 +27,7 @@ type AppendMessage = {
   payload: string;
 };
 
-enum MessageTypes {
+export enum MessageTypes {
   Login,
   Enter,
   Exit,
@@ -35,27 +35,27 @@ enum MessageTypes {
   Okay,
   Error,
 }
-type OkayLoginMessage = {
+export type OkayLoginMessage = {
   okay: MessageTypes.Login;
   no: number;
 };
-type OkayEnterMessage = {
+export type OkayEnterMessage = {
   okay: MessageTypes.Enter;
   totalCount: Index;
   yourCount: Index;
   no: number;
 };
-type OkayExitMessage = {
+export type OkayExitMessage = {
   okay: MessageTypes.Exit;
   no: number;
 };
-type ErrorMessage = {
+export type ErrorMessage = {
   errorType: MessageTypes;
   reason: string;
   no: number;
 };
 
-type SHA256Message = {
+export type SHA256Message = {
   salt: string;
   payload: string;
 };

@@ -1,5 +1,6 @@
 import "socket.io-client";
 import "../types/messages.js";
+import { LoginMessage } from "../types/messages.js";
 
 enum ClientState {
   Disconnected,

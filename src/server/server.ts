@@ -1,4 +1,15 @@
-import "../types/messages.js";
+import {
+  MessageTypes,
+  AppendMessage,
+  UserId,
+  Index,
+  RoomId,
+  ErrorMessage,
+  JoinMessage,
+  OkayEnterMessage,
+  LoginMessage,
+  OkayLoginMessage,
+} from "../types/messages.js";
 
 interface Socket {
   emit: (emit: string, msg: any) => void;
