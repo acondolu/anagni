@@ -96,7 +96,7 @@ export class Server {
     if (!!socketInfo.uid) {
       const response: ErrorMessage = {
         errorType: MessageTypes.Login,
-        reason: "Already logged in"
+        reason: "Already logged in",
       };
       return socket.emit("err", response);
     }

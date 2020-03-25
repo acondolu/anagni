@@ -72,7 +72,7 @@
       </div>
     </div>
     <script type="module">
-      import {Client} from "./controller.js";
+      import { Client } from "./controller.js";
       // var socket = io.connect("http://localhost:8080");
       // socket.on("connect", () => {
       //   console.log("C", socket.connected); // false
@@ -84,7 +84,12 @@
       // window.f = function () {
       //   socket.emit("login", { uid: "ciao" });
       // };
-      let x = new Client("http://localhost:8080", {uid: "ciao", secret: "hello"}, {rid: "ciao"}, null);
+      let x = new Client(
+        "http://localhost:8080",
+        { uid: "ciao", secret: "hello" },
+        { rid: "ciao" },
+        null
+      );
       x.connect();
     </script>
   </body>

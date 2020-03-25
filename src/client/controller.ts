@@ -13,7 +13,7 @@ type Game = Transition<Message, Message>;
 type RoomAuth = {
   rid: RoomId;
   secret: string;
-}
+};
 
 export class Client {
   game: Game;
@@ -71,7 +71,7 @@ export class Client {
         this.state = ClientState.Logged;
         this.socket.emit("join", {
           rid: this.room.rid,
-          lastKnownMsg: -1, // FIXME: 
+          lastKnownMsg: -1, // FIXME:
         });
         break;
       case ClientState.Logged:
