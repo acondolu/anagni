@@ -2,7 +2,7 @@ export type SessionId = string;
 export type RoomId = string;
 export type Count = number;
 
-export enum MessageTypes {
+export const enum MessageTypes {
   Join,
   Push,
   Okay,
@@ -34,7 +34,7 @@ export type OkayMessage = {
   totalCount: Count;
   yourCount: Count;
 };
-export enum ErrorMessage {
+export const enum ErrorMessage {
   AlreadyJoined,
   WrongSession,
   OtherConnection,

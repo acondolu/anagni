@@ -31,13 +31,13 @@ type Auth = {
   roomSecret: string;
 };
 
-enum ConnectionState {
+const enum ConnectionState {
   Down,
   Joining,
   Joined,
 }
 
-enum ControllerError {
+const enum ControllerError {
   AlreadyConnect,
   SocketError,
   JoinError,

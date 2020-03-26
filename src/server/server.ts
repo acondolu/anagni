@@ -14,7 +14,7 @@ interface Socket {
   connected: boolean;
 }
 
-enum SocketState {
+const enum SocketState {
   Idle,
   Streaming,
   Delete,

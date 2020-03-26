@@ -3,6 +3,8 @@
 TSC = npx tsc
 PRETTIER = npx prettier
 NODE = node --experimental-modules
+MOCHA = npx mocha
+GCC = npx google-closure-compiler --compilation_level=ADVANCED_OPTIMIZATIONS --language_out=ES6
 
 build: tsc
 
@@ -18,7 +20,7 @@ test:
 	$(PRETTIER) --check src/
 	$(NODE) build/server/main.js
 	$(NODE) build/client/main.js
-	npx mocha build/tests/*.js
+	$(MOCHA) build/tests/*.js
 
 dist:
 	cp -r build dist
@@ -30,9 +32,16 @@ clean:
 
 
 compile:
-	npx google-closure-compiler --module_resolution=NODE --js=build/server/*.js --js_output_file=dist/server.js --entry_point ./build/server/index.js \
-		--js node_modules/socket.io/lib/*.js --js node_modules/socket.io/package.json \
-		--js node_modules/debug/package.json \
-		--externs node_modules/google-closure-compiler/contrib/nodejs/url.js \
-		--jscomp_off=checkVars
-	npx google-closure-compiler --js=build/client/*.js --js_output_file=dist/client.js
+	npx webpack --config webpack.config.cjs
+	$(GCC) --module_resolution=NODE --js=build/server/main.js --js_output_file=dist/server.js
+	# $(GCC) --module_resolution=NODE \
+	# --process_common_js_modules \
+	# 	--js=build/**/*.js \
+	# 	--js_output_file=dist/server.js \
+	# 	--entry_point ./build/server/main.js \
+	# 	--js node_modules/socket.io/package.json \
+	# 	--js node_modules/socket.io/lib/*.js \
+	# 	--js node_modules/google-closure-compiler/contrib/nodejs/url.js \
+	# 	--jscomp_off=checkVars
+
+	# npx google-closure-compiler --js=build/client/*.js --js_output_file=dist/client.js
