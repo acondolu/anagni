@@ -7,6 +7,5 @@ import "../client/controller.js";
 import "mocha";
 
 describe("Mock test", function () {
-  it("should succeed", function () {
-  });
+  it("should succeed", function () {});
 });
