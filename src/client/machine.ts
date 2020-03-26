@@ -43,6 +43,8 @@ function composeMachines<EventX, ActionX, EventY, ActionY>(
 
 /**
  * The AES encryption layer.
+ * FIXME: Comment the use of AES-GCM
+ * TODO: Crypt only the field of Block<.>
  */
 type AESPayload = {
   iv: Uint8Array;
@@ -152,6 +154,7 @@ async function* TextLayer(
   }
 }
 
+// FIXME: remove these:
 // test the types
 let aes = new SimpleAES(null, null);
 
