@@ -9,6 +9,7 @@ build: tsc
 tsc:
 	$(TSC) --project src/server/tsconfig.json
 	$(TSC) --project src/client/tsconfig.json
+	$(TSC) --project src/tests/tsconfig.json
 
 prettier:
 	$(PRETTIER) --write src/
@@ -17,6 +18,7 @@ test:
 	$(PRETTIER) --check src/
 	$(NODE) build/server/main.js
 	$(NODE) build/client/main.js
+	npx mocha build/tests/*.js
 
 dist:
 	cp -r build dist

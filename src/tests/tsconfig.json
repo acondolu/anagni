@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../build/",
+    "module": "ES6",
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true
+  }
+}
