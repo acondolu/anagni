@@ -30,13 +30,13 @@ class MockSocket implements Socket {
 const session1 = new ArrayBuffer(8);
 session1[0] = 0x00;
 const session2 = new ArrayBuffer(8);
-session2[0] = 0xFF;
+session2[0] = 0xff;
 const secret1 = new ArrayBuffer(8);
-secret1[0] = 0xA0;
+secret1[0] = 0xa0;
 const secret2 = new ArrayBuffer(8);
-secret2[0] = 0x0A;
+secret2[0] = 0x0a;
 const room = new ArrayBuffer(8);
-room[0] = 0xAA;
+room[0] = 0xaa;
 const unValidJoinMessage: JoinMessage = {
   session: new ArrayBuffer(1),
   rid: new ArrayBuffer(1),
