@@ -79,19 +79,38 @@ class SimpleAES {
       }
       case true: {
         // Encrypt e.content
-        const iv = this.iv; // FIXME: generate new iv
-        this.iv = iv; // and then update the state
+        this.iv = SimpleAES.ivIncrement(this.iv);
         const c = await window.crypto.subtle.encrypt(
           {
             name: "AES-GCM",
-            iv: iv,
+            iv: this.iv,
           },
           this.key,
           e.content
         );
-        yield { where: true, content: { iv, data: new Uint8Array(c) } };
+        yield {
+          where: true,
+          content: { iv: this.iv, data: new Uint8Array(c) },
+        };
       }
     }
+  }
+
+  /**
+   * Increments the integer stored in a Uint8Array
+   * according to the big-endian order.
+   */
+  static ivIncrement(iv: Uint8Array): Uint8Array {
+    const iv2 = iv.slice();
+    for (let i = iv2.length - 1; i >= 0; i--) {
+      if (iv2[i] == 0xff) {
+        iv2[i] = 0x00;
+      } else {
+        iv2[i] += 0x01;
+        return iv2;
+      }
+    }
+    throw new Error("Overflow error when incrementing the iv");
   }
 }
 

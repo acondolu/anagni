@@ -16,13 +16,13 @@ export type JoinMessage = {
   rid: RoomId;
   recvdBlocksNo: Index;
 };
-// type LeaveMessage = { rid: RoomId; no: number };
-export type AppendMessage = {
+
+export type Block<Content> = {
   index: Index;
   uid: UserId;
   mode: AccessControlMode;
   accessControlList: Array<UserId>;
-  payload: string;
+  payload: Content;
 };
 
 export enum MessageTypes {
@@ -33,7 +33,7 @@ export enum MessageTypes {
   Okay,
   Error,
 }
-export type OkayLoginMessage = {
+export type OkayMessage = {
   okay: MessageTypes.Login;
 };
 export type OkayEnterMessage = {
@@ -41,15 +41,7 @@ export type OkayEnterMessage = {
   totalCount: Index;
   yourCount: Index;
 };
-export type OkayExitMessage = {
-  okay: MessageTypes.Exit;
-};
 export type ErrorMessage = {
   errorType: MessageTypes;
   reason: string;
-};
-
-export type SHA256Message = {
-  salt: string;
-  payload: string;
 };

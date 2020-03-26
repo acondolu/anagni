@@ -1,15 +1,15 @@
 import {
   MessageTypes,
-  AppendMessage,
+  Block,
   UserId,
   Index,
   RoomId,
-  ErrorMessage,
-  JoinMessage,
-  OkayEnterMessage,
-  LoginMessage,
-  OkayLoginMessage,
   AccessControlMode,
+  JoinMessage,
+  LoginMessage,
+  OkayEnterMessage,
+  OkayMessage,
+  ErrorMessage,
 } from "../types/messages.js";
 
 interface Socket {
@@ -18,7 +18,7 @@ interface Socket {
 }
 
 type Room = {
-  log: Array<Readonly<AppendMessage>>;
+  log: Array<Readonly<Block<any>>>;
   userMessagesCount: Map<UserId, Index>;
   sockets: Set<Socket>;
 };
@@ -141,7 +141,7 @@ export class Server {
     socketInfo.uid = uid;
     socketInfo.user = user;
     user.sockets.add(socket);
-    const response: OkayLoginMessage = {
+    const response: OkayMessage = {
       okay: MessageTypes.Login,
     };
     return socket.emit("okay", response);
@@ -207,7 +207,7 @@ export class Server {
     socket.emit("welcome", answer);
   }
 
-  append(socket: Socket, msg: AppendMessage) {
+  append(socket: Socket, block: Block<any>) {
     const info = this.sockets.get(socket);
     const rid = info.rid;
     if (!rid) {
@@ -218,9 +218,9 @@ export class Server {
       return socket.emit("err", response);
     }
     const room: Room = this.rooms.get(rid);
-    msg.index = room.log.length;
-    msg.uid = info.uid;
-    room.log.push(Object.freeze(msg));
+    block.index = room.log.length;
+    block.uid = info.uid;
+    room.log.push(Object.freeze(block));
     room.userMessagesCount.set(
       info.uid,
       room.userMessagesCount.get(info.uid) + 1

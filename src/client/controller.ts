@@ -1,4 +1,10 @@
-import { UserId, RoomId, AppendMessage } from "../types/messages.js";
+import {
+  UserId,
+  RoomId,
+  Block,
+  JoinMessage,
+  LoginMessage,
+} from "../types/messages.js";
 
 enum ClientState {
   Disconnected,
@@ -7,9 +13,7 @@ enum ClientState {
   Joined,
 }
 
-type Block = AppendMessage;
-
-type Game = Transition<Block, Block>;
+type Game = Transition<Block<any>, Block<any>>;
 
 type Auth = {
   type: "simple";
@@ -30,7 +34,7 @@ export class Client {
   recvBlockPromise: Promise<void>;
   recvdBlocksNo: number;
   sentBlocksNo: number;
-  sendQueue: Array<Block>;
+  sendQueue: Array<Block<any>>;
 
   constructor(addr: string, auth: Auth, game: Game) {
     this.game = game;
@@ -56,7 +60,10 @@ export class Client {
     this.socket.on("connect", () => {
       console.log("connected");
       this.state = ClientState.Connected;
-      this.socket.emit("login", this.auth);
+      this.socket.emit("login", {
+        uid: this.auth.uid,
+        secret: this.auth.userSecret,
+      } as LoginMessage);
     });
     this.socket.on("err", () => {
       this.state = ClientState.Disconnected;
@@ -76,8 +83,8 @@ export class Client {
         this.state = ClientState.Logged;
         this.socket.emit("join", {
           rid: this.auth.rid,
-          lastKnownMsg: -1, // FIXME:
-        });
+          recvdBlocksNo: this.recvdBlocksNo,
+        } as JoinMessage);
         break;
       case ClientState.Logged:
         this.state = ClientState.Joined;
@@ -91,39 +98,42 @@ export class Client {
   /**
    * When a new Block is received
    */
-  private async receiveBlock(msg: Block): Promise<void> {
+  private async receiveBlock(block: Block<any>): Promise<void> {
     // Check that we have all previous blocks
-    if (this.recvdBlocksNo != msg.index) {
+    if (this.recvdBlocksNo != block.index) {
       return this.fatalError("protocol error");
     }
     this.recvdBlocksNo += 1;
-    if (msg.uid == this.auth.uid) {
+    if (block.uid == this.auth.uid) {
       // Block sent by this user, remove
       // from queue and maybe send another one
       const sendQueueLen = this.sendQueue.length;
       if (this.sentBlocksNo >= sendQueueLen) {
         return this.fatalError("protocol error");
       }
-      const msg2 = this.sendQueue[this.sentBlocksNo];
+      const block2 = this.sendQueue[this.sentBlocksNo];
       // Check that msg == msg2
       // Note: do not compare index attribute
       if (
-        msg.mode != msg2.mode ||
-        msg.accessControlList != msg2.accessControlList ||
-        msg.payload != msg2.payload
+        block.mode != block2.mode ||
+        block.accessControlList != block2.accessControlList ||
+        block.payload != block2.payload
       ) {
         return this.fatalError("protocol error: received different than sent");
       }
       this.sentBlocksNo += 1;
       if (this.sentBlocksNo < sendQueueLen) {
-        this.socket.emit("append", this.sendQueue[this.sentBlocksNo]);
+        this.socket.emit(
+          "append",
+          this.sendQueue[this.sentBlocksNo] as Block<any>
+        );
       }
     }
     let wasEmpty = this.sentBlocksNo == this.sendQueue.length;
-    for await (const b of this.game(msg)) {
+    for await (const b of this.game(block)) {
       this.sendQueue.push(b);
       if (wasEmpty) {
-        this.socket.emit("append", b);
+        this.socket.emit("append", b as Block<any>);
         wasEmpty = false;
       }
     }
