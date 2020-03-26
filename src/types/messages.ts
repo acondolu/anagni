@@ -1,6 +1,13 @@
-export type UserId = string;
+export type SessionId = string;
 export type RoomId = string;
-export type Index = number;
+export type Count = number;
+
+export enum MessageTypes {
+  Join,
+  Push,
+  Okay,
+  Error,
+}
 
 // Access control
 export const enum AccessControlMode {
@@ -9,35 +16,27 @@ export const enum AccessControlMode {
 }
 
 export type JoinMessage = {
-  session: UserId;
+  session: SessionId;
   rid: RoomId;
   secret: string;
-  recvdBlocksNo: Index;
+  recvdBlocksNo: Count;
 };
 
 export type Block<Content> = {
-  index: Index;
-  uid: UserId;
+  index: Count;
+  session: SessionId;
   mode: AccessControlMode;
-  accessControlList: Array<UserId>;
+  accessControlList: Array<SessionId>;
   payload: Content;
 };
 
-export enum MessageTypes {
-  Join,
-  Push,
-  Okay,
-  Error,
-}
 export type OkayMessage = {
-  okay: MessageTypes.Okay;
+  totalCount: Count;
+  yourCount: Count;
 };
-export type OkayJoinMessage = {
-  okay: MessageTypes.Join;
-  totalCount: Index;
-  yourCount: Index;
-};
-export type ErrorMessage = {
-  errorType: MessageTypes;
-  reason: string;
-};
+export enum ErrorMessage {
+  AlreadyJoined,
+  WrongSession,
+  OtherConnection,
+  MustJoin,
+}

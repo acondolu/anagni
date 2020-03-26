@@ -1,4 +1,11 @@
-import { UserId, RoomId, Block, JoinMessage } from "../types/messages.js";
+import {
+  SessionId,
+  RoomId,
+  Block,
+  JoinMessage,
+  OkayMessage,
+  ErrorMessage,
+} from "../types/messages.js";
 
 interface View {
   /**
@@ -13,16 +20,15 @@ type Model = Transition<Block<any>, Block<any>>;
 
 type Auth = {
   type: "simple";
-  uid: UserId;
-  userSecret: string;
-  rid: RoomId;
+  session: SessionId;
+  room: RoomId;
+  sessionSecret: string;
   roomSecret: string;
 };
 
 enum ConnectionState {
-  Disconnected,
-  Connected,
-  Logged,
+  Down,
+  Joining,
   Joined,
 }
 
@@ -45,7 +51,8 @@ export class Controller {
     this.auth = auth;
     this.view = view;
     this.model = model;
-    this.socketState = ConnectionState.Disconnected;
+    this.socket = undefined;
+    this.socketState = ConnectionState.Down;
     this.recvBlockPromise = Promise.resolve();
   }
 
@@ -53,59 +60,48 @@ export class Controller {
    * Disconnect and clear the socket.
    */
   disconnect() {
-    this.socketState = ConnectionState.Disconnected;
-    this.socket.disconnect();
+    this.socketState = ConnectionState.Down;
+    const socket = this.socket;
     this.socket = null;
+    if (socket.connected) this.socket.disconnect();
   }
 
   /**
    * Connect, login, and join the room.
    */
   connect() {
+    if (this.socket) {
+      this.view.error("Already connected"); // FIXME:
+    }
     this.socket = io.connect(this.addr);
-    this.socket.on("error", () => {
-      console.log("connected");
-      this.socketState = ConnectionState.Disconnected;
-      this.socket = null;
+    this.socket.on("error", (reason: string) => {
+      this.disconnect();
+      this.view.error("Socket Error: " + reason); // FIXME:
     });
     this.socket.on("connect", () => {
       console.log("connected");
-      this.socketState = ConnectionState.Connected;
-      this.socket.emit("login", {
-        session: this.auth.uid,
-        rid: this.auth.rid,
-        secret: this.auth.userSecret,
+      this.socketState = ConnectionState.Joining;
+      this.socket.emit("join", {
+        session: this.auth.session,
+        rid: this.auth.room,
+        secret: this.auth.sessionSecret,
       } as JoinMessage);
     });
-    this.socket.on("err", () => {
-      this.socketState = ConnectionState.Disconnected;
-      this.socket = null;
+    this.socket.on("err", (reason: ErrorMessage) => {
+      this.disconnect();
+      this.view.error("Join Error: " + reason); // FIXME:
     });
     this.socket.on("okay", (m: any) => this.okay(m));
-    this.socket.on("append", (m: any) =>
+    this.socket.on("push", (m: any) =>
       this.recvBlockPromise.then(() => this.receiveBlock(m))
     );
     console.log("connect", this.socket.connected);
   }
 
-  private okay(_: any) {
-    console.log("okay", this.socketState);
-    switch (this.socketState) {
-      case ConnectionState.Connected:
-        this.socketState = ConnectionState.Logged;
-        this.socket.emit("join", {
-          rid: this.auth.rid,
-          recvdBlocksNo: this.recvdBlocksNo,
-        } as JoinMessage);
-        break;
-      case ConnectionState.Logged:
-        this.socketState = ConnectionState.Joined;
-        this.done();
-        break;
-    }
+  private okay(ok: OkayMessage) {
+    this.sentBlocksNo = ok.yourCount;
+    this.view.connected();
   }
-
-  private done() {}
 
   /**
    * When a new Block is received
@@ -116,7 +112,7 @@ export class Controller {
       return this.view.error("protocol error");
     }
     this.recvdBlocksNo += 1;
-    if (block.uid == this.auth.uid) {
+    if (block.session == this.auth.session) {
       // Block sent by this user, remove
       // from queue and maybe send another one
       const sendQueueLen = this.sendQueue.length;
@@ -136,7 +132,7 @@ export class Controller {
       this.sentBlocksNo += 1;
       if (this.sentBlocksNo < sendQueueLen) {
         this.socket.emit(
-          "append",
+          "push",
           this.sendQueue[this.sentBlocksNo] as Block<any>
         );
       }
@@ -145,7 +141,7 @@ export class Controller {
     for await (const b of this.model(block)) {
       this.sendQueue.push(b);
       if (wasEmpty) {
-        this.socket.emit("append", b as Block<any>);
+        this.socket.emit("push", b as Block<any>);
         wasEmpty = false;
       }
     }

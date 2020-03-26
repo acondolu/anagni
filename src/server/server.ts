@@ -1,12 +1,9 @@
 import {
-  MessageTypes,
-  Block,
-  UserId,
-  Index,
+  SessionId,
   RoomId,
   AccessControlMode,
+  Block,
   JoinMessage,
-  OkayJoinMessage,
   OkayMessage,
   ErrorMessage,
 } from "../types/messages.js";
@@ -22,8 +19,6 @@ enum SocketState {
   Streaming,
   Delete,
 }
-
-type SessionId = string;
 
 type Session = {
   id: SessionId;
@@ -72,9 +67,9 @@ export class Server {
               obscure = b.accessControlList.indexOf(session.id) != -1;
               break;
           }
-          const bCopy = {
+          const bCopy: Block<any> = {
             index: b.index,
-            uid: b.uid,
+            session: b.session,
             mode: b.mode,
             accessControlList: b.accessControlList,
             payload: obscure ? null : b.payload,
@@ -103,11 +98,7 @@ export class Server {
     let session = this.sockets.get(socket);
     //
     if (session) {
-      const response: ErrorMessage = {
-        errorType: MessageTypes.Join,
-        reason: "Already joined",
-      };
-      return socket.emit("err", response);
+      return socket.emit("err", ErrorMessage.AlreadyJoined);
     }
     //
     let room = this.rooms.get(j.rid);
@@ -124,19 +115,11 @@ export class Server {
     if (session) {
       // Check secret
       if (session.secret != j.secret || session.rid != j.rid) {
-        const response: ErrorMessage = {
-          errorType: MessageTypes.Join,
-          reason: "Wrong secret",
-        };
-        return socket.emit("err", response);
+        return socket.emit("err", ErrorMessage.WrongSession);
       }
       if (session.socket) {
         // Invalidate previous socket connection
-        const response: ErrorMessage = {
-          errorType: MessageTypes.Join,
-          reason: "New connection",
-        };
-        socket.emit("err", response);
+        socket.emit("err", ErrorMessage.OtherConnection);
         socket.disconnect();
       }
       session.socket = socket;
@@ -155,8 +138,7 @@ export class Server {
     }
     session.sentBlocksNo = j.recvdBlocksNo;
 
-    const response: OkayJoinMessage = {
-      okay: MessageTypes.Join,
+    const response: OkayMessage = {
       totalCount: room.log.length,
       yourCount: session.recvBlocksNo,
     };
@@ -166,15 +148,11 @@ export class Server {
   push(socket: Socket, block: Block<any>) {
     const session = this.sockets.get(socket);
     if (!session) {
-      const response: ErrorMessage = {
-        errorType: MessageTypes.Push,
-        reason: "Join first",
-      };
-      return socket.emit("err", response);
+      return socket.emit("err", ErrorMessage.MustJoin);
     }
     const room: Room = this.rooms.get(session.rid);
     block.index = room.log.length;
-    block.uid = session.id;
+    block.session = session.id;
     room.log.push(Object.freeze(block));
     session.recvBlocksNo += 1;
     this.emitUpdate(room);
