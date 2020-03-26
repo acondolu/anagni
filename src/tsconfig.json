@@ -5,12 +5,8 @@
     "outDir": "../build/",
     "baseUrl": "..",
     "paths": {
-      "*": [
-          "node_modules/",
-      ]
+      "*": ["node_modules/"]
     }
   },
-  "exclude": [
-    "../node_modules"
-  ]
+  "exclude": ["../node_modules"]
 }
