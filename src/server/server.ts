@@ -1,6 +1,7 @@
 import {
   SessionId,
   RoomId,
+  Binary,
   AccessControlMode,
   Block,
   JoinMessage,
@@ -23,7 +24,7 @@ const enum SocketState {
 type Session = {
   id: SessionId;
   rid: RoomId;
-  secret: string;
+  secret: Binary;
   socket: Socket | null;
   socketState: SocketState;
   sentBlocksNo: number;

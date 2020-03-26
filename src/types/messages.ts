@@ -1,5 +1,6 @@
-export type SessionId = string;
-export type RoomId = string;
+export type SessionId = ArrayBuffer;
+export type RoomId = ArrayBuffer;
+export type Binary = ArrayBuffer;
 export type Count = number;
 
 export const enum MessageTypes {
@@ -18,7 +19,7 @@ export const enum AccessControlMode {
 export type JoinMessage = {
   session: SessionId;
   rid: RoomId;
-  secret: string;
+  secret: Binary;
   recvdBlocksNo: Count;
 };
 

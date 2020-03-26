@@ -27,17 +27,32 @@ class MockSocket implements Socket {
   }
 }
 
+const session1 = new ArrayBuffer(8);
+session1[0] = 0x00;
+const session2 = new ArrayBuffer(8);
+session2[0] = 0xFF;
+const secret1 = new ArrayBuffer(8);
+secret1[0] = 0xA0;
+const secret2 = new ArrayBuffer(8);
+secret2[0] = 0x0A;
+const room = new ArrayBuffer(8);
+room[0] = 0xAA;
 const unValidJoinMessage: JoinMessage = {
-  session: "1",
-  rid: "R",
-  secret: "BAB",
+  session: new ArrayBuffer(1),
+  rid: new ArrayBuffer(1),
+  secret: new ArrayBuffer(1),
   recvdBlocksNo: 0,
 };
-const validJoinMessage = unValidJoinMessage;
+const validJoinMessage: JoinMessage = {
+  session: session1,
+  rid: room,
+  secret: secret1,
+  recvdBlocksNo: 0,
+};
 const validJoinMessage2: JoinMessage = {
-  session: "2",
-  rid: "R",
-  secret: "ABA",
+  session: session2,
+  rid: room,
+  secret: secret2,
   recvdBlocksNo: 0,
 };
 

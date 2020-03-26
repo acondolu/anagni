@@ -1,6 +1,5 @@
 import {
-  SessionId,
-  RoomId,
+  Binary,
   Block,
   JoinMessage,
   OkayMessage,
@@ -25,9 +24,9 @@ interface Model {
 
 type Auth = {
   type: "simple";
-  session: SessionId;
-  room: RoomId;
-  sessionSecret: string;
+  session: Binary;
+  room: Binary;
+  sessionSecret: Binary;
   roomSecret: string;
 };
 
