@@ -5,7 +5,7 @@ import {
   ErrorMessage,
   Block,
   AccessControlMode,
-} from "messages.js";
+} from "../types/messages.js";
 
 // const _ = new SocketIOServer();
 import "mocha";

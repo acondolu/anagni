@@ -9,22 +9,18 @@ GCC = npx google-closure-compiler --compilation_level=ADVANCED_OPTIMIZATIONS --l
 build: tsc
 
 tsc:
-	$(TSC) --project src/server/tsconfig.json
-	$(TSC) --project src/client/tsconfig.json
-	$(TSC) --project src/tests/tsconfig.json
+	$(TSC) --project src/tsconfig.json
 
 prettier:
 	$(PRETTIER) --write src/
 
 test:
 	$(PRETTIER) --check src/
-	$(NODE) build/server/main.js
-	$(NODE) build/client/main.js
 	$(MOCHA) build/tests/*.js
 
 dist:
 	cp -r build dist
-	cp src/client/static/* dist/client/
+	cp src/hanabi/static/* dist/hanabi/
 
 clean:
 	rm -rf dist
