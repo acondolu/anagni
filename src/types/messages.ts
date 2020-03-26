@@ -14,7 +14,7 @@ export type LoginMessage = {
 };
 export type JoinMessage = {
   rid: RoomId;
-  lastKnownMsg: Index;
+  recvdBlocksNo: Index;
 };
 // type LeaveMessage = { rid: RoomId; no: number };
 export type AppendMessage = {

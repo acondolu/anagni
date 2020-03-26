@@ -9,10 +9,11 @@ import {
   OkayEnterMessage,
   LoginMessage,
   OkayLoginMessage,
+  AccessControlMode,
 } from "../types/messages.js";
 
 interface Socket {
-  emit: (emit: string, msg: any) => void;
+  emit: (cmd: string, content: any) => void;
   disconnect: () => void;
 }
 
@@ -37,7 +38,7 @@ type SocketInfo = {
   user: User;
   rid: RoomId;
   state: SocketState;
-  lastSent: Index;
+  sentBlocksNo: Index;
 };
 
 export class Server {
@@ -58,7 +59,7 @@ export class Server {
       user: null,
       rid: null,
       state: SocketState.Idle,
-      lastSent: null,
+      sentBlocksNo: null,
     });
   }
 
@@ -71,10 +72,29 @@ export class Server {
         break;
       case SocketState.Streaming:
         let log = room.log;
-        if (log.length > info.lastSent + 1) {
+        if (log.length > info.sentBlocksNo) {
           // Send one more message
-          // FIXME: enforce access mode!
-          socket.emit("append", log[log.length - 1]);
+          // Enforce access mode!
+          const b = log[info.sentBlocksNo];
+          let obscure = false;
+          switch (b.mode) {
+            case AccessControlMode.Only:
+              obscure = b.accessControlList.indexOf(info.uid) == -1;
+              break;
+            case AccessControlMode.Except:
+              obscure = b.accessControlList.indexOf(info.uid) != -1;
+              break;
+          }
+          const bCopy = {
+            index: b.index,
+            uid: b.uid,
+            mode: b.mode,
+            accessControlList: b.accessControlList,
+            payload: obscure ? null : b.payload,
+          };
+          socket.emit("append", bCopy);
+          info.sentBlocksNo += 1;
+          // Call again
           this.sendMoreAux(room, socket, info);
         } else {
           info.state = SocketState.Idle;
@@ -143,7 +163,7 @@ export class Server {
       };
       return socket.emit("err", response);
     }
-    const { rid, lastKnownMsg } = msg;
+    const rid = msg.rid;
     let user: User = info.user;
     // Check rid
     let room = this.rooms.get(rid);
@@ -165,15 +185,15 @@ export class Server {
       }
     }
     info.rid = rid;
-    info.lastSent = lastKnownMsg;
+    info.sentBlocksNo = msg.recvdBlocksNo;
 
     let yourCount: Index = room.userMessagesCount.get(info.uid);
-    if (yourCount == undefined) {
+    if (isNaN(yourCount)) {
       yourCount = 0;
       room.userMessagesCount.set(info.uid, 0);
     }
-    const lastMsg: Index = room.log.length - 1;
-    if (lastMsg > lastKnownMsg + 1) {
+    const totalCount: Index = room.log.length;
+    if (totalCount > info.sentBlocksNo) {
       if (info.state != SocketState.Idle)
         throw new Error("Not idle, impossible.");
       info.state = SocketState.Streaming;
@@ -182,7 +202,7 @@ export class Server {
     let answer: OkayEnterMessage = {
       okay: MessageTypes.Enter,
       yourCount: yourCount,
-      totalCount: lastMsg,
+      totalCount: totalCount,
     };
     socket.emit("welcome", answer);
   }
@@ -199,8 +219,8 @@ export class Server {
     }
     const room: Room = this.rooms.get(rid);
     msg.index = room.log.length;
+    msg.uid = info.uid;
     room.log.push(Object.freeze(msg));
-    // TODO: enforce sender
     room.userMessagesCount.set(
       info.uid,
       room.userMessagesCount.get(info.uid) + 1
