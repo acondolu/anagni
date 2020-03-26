@@ -8,12 +8,10 @@ export const enum AccessControlMode {
   Except,
 }
 
-export type LoginMessage = {
-  uid: UserId;
-  secret: string;
-};
 export type JoinMessage = {
+  session: UserId;
   rid: RoomId;
+  secret: string;
   recvdBlocksNo: Index;
 };
 
@@ -26,18 +24,16 @@ export type Block<Content> = {
 };
 
 export enum MessageTypes {
-  Login,
-  Enter,
-  Exit,
-  Append,
+  Join,
+  Push,
   Okay,
   Error,
 }
 export type OkayMessage = {
-  okay: MessageTypes.Login;
+  okay: MessageTypes.Okay;
 };
-export type OkayEnterMessage = {
-  okay: MessageTypes.Enter;
+export type OkayJoinMessage = {
+  okay: MessageTypes.Join;
   totalCount: Index;
   yourCount: Index;
 };

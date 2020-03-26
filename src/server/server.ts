@@ -6,8 +6,7 @@ import {
   RoomId,
   AccessControlMode,
   JoinMessage,
-  LoginMessage,
-  OkayEnterMessage,
+  OkayJoinMessage,
   OkayMessage,
   ErrorMessage,
 } from "../types/messages.js";
@@ -15,74 +14,62 @@ import {
 interface Socket {
   emit: (cmd: string, content: any) => void;
   disconnect: () => void;
+  connected: boolean;
 }
-
-type Room = {
-  log: Array<Readonly<Block<any>>>;
-  userMessagesCount: Map<UserId, Index>;
-  sockets: Set<Socket>;
-};
-
-type User = {
-  secret: string;
-  sockets: Set<Socket>;
-};
 
 enum SocketState {
   Idle,
   Streaming,
   Delete,
 }
-type SocketInfo = {
-  uid: UserId;
-  user: User;
+
+type SessionId = string;
+
+type Session = {
+  id: SessionId;
   rid: RoomId;
-  state: SocketState;
-  sentBlocksNo: Index;
+  secret: string;
+  socket: Socket | null;
+  socketState: SocketState;
+  sentBlocksNo: number;
+  recvBlocksNo: number;
+};
+
+type Room = {
+  log: Array<Readonly<Block<any>>>;
+  sessions: Map<SessionId, Session>;
 };
 
 export class Server {
   rooms: Map<RoomId, Room>;
-  users: Map<UserId, User>;
-  sockets: Map<Socket, SocketInfo>;
+  sockets: Map<Socket, Session>;
 
   constructor() {
     this.rooms = new Map();
-    this.users = new Map();
     this.sockets = new Map();
     Object.seal(this);
   }
 
-  connection(socket: Socket) {
-    this.sockets.set(socket, {
-      uid: null,
-      user: null,
-      rid: null,
-      state: SocketState.Idle,
-      sentBlocksNo: null,
-    });
-  }
-
-  private async sendMoreAux(room: Room, socket: Socket, info: SocketInfo) {
-    switch (info.state) {
+  private async sendMoreAux(room: Room, session: Session) {
+    switch (session.socketState) {
       case SocketState.Idle:
         throw new Error("Idle state is not possible");
       case SocketState.Delete:
-        this.freeSocket(socket, info);
+        this.freeSocket(session);
         break;
       case SocketState.Streaming:
         let log = room.log;
-        if (log.length > info.sentBlocksNo) {
+        if (log.length > session.sentBlocksNo) {
           // Send one more message
           // Enforce access mode!
-          const b = log[info.sentBlocksNo];
+          const b = log[session.sentBlocksNo];
           let obscure = false;
           switch (b.mode) {
             case AccessControlMode.Only:
-              obscure = b.accessControlList.indexOf(info.uid) == -1;
+              obscure = b.accessControlList.indexOf(session.id) == -1;
               break;
             case AccessControlMode.Except:
-              obscure = b.accessControlList.indexOf(info.uid) != -1;
+              obscure = b.accessControlList.indexOf(session.id) != -1;
               break;
           }
           const bCopy = {
@@ -92,159 +79,125 @@ export class Server {
             accessControlList: b.accessControlList,
             payload: obscure ? null : b.payload,
           };
-          socket.emit("append", bCopy);
-          info.sentBlocksNo += 1;
+          session.socket.emit("append", bCopy as Block<any>);
+          session.sentBlocksNo += 1;
           // Call again
-          this.sendMoreAux(room, socket, info);
+          this.sendMoreAux(room, session);
         } else {
-          info.state = SocketState.Idle;
+          session.socketState = SocketState.Idle;
         }
     }
   }
 
   private emitUpdate(room: Room) {
-    for (const socket of room.sockets.keys()) {
-      const info = this.sockets.get(socket);
-      if (info.state == SocketState.Idle) {
-        info.state = SocketState.Streaming;
-        this.sendMoreAux(room, socket, info);
+    for (const id of room.sessions.keys()) {
+      const session = room.sessions.get(id);
+      if (session.socketState == SocketState.Idle) {
+        session.socketState = SocketState.Streaming;
+        this.sendMoreAux(room, session);
       }
     }
   }
 
-  login(socket: Socket, msg: LoginMessage) {
-    let socketInfo: SocketInfo = this.sockets.get(socket);
-    if (!!socketInfo.uid) {
+  join(socket: Socket, j: JoinMessage) {
+    let session = this.sockets.get(socket);
+    //
+    if (session) {
       const response: ErrorMessage = {
-        errorType: MessageTypes.Login,
-        reason: "Already logged in",
+        errorType: MessageTypes.Join,
+        reason: "Already joined",
       };
       return socket.emit("err", response);
     }
-    let uid = msg.uid;
-    let user: User = this.users.get(uid);
-    if (user) {
-      if (user.secret != msg.secret) {
+    //
+    let room = this.rooms.get(j.rid);
+    if (!room) {
+      // Create room
+      room = {
+        log: new Array(),
+        sessions: new Map(),
+      };
+      this.rooms.set(j.rid, room);
+    }
+    // Check if session
+    session = room.sessions.get(j.session);
+    if (session) {
+      // Check secret
+      if (session.secret != j.secret || session.rid != j.rid) {
         const response: ErrorMessage = {
-          errorType: MessageTypes.Login,
+          errorType: MessageTypes.Join,
           reason: "Wrong secret",
         };
         return socket.emit("err", response);
       }
+      if (session.socket) {
+        // Invalidate previous socket connection
+        const response: ErrorMessage = {
+          errorType: MessageTypes.Join,
+          reason: "New connection",
+        };
+        socket.emit("err", response);
+        socket.disconnect();
+      }
+      session.socket = socket;
     } else {
-      user = {
-        secret: msg.secret,
-        sockets: new Set(),
+      // Create new session
+      session = {
+        id: j.session,
+        rid: j.rid,
+        secret: j.secret,
+        socket,
+        socketState: SocketState.Idle,
+        sentBlocksNo: 0,
+        recvBlocksNo: 0,
       };
-      this.users.set(uid, user);
+      room.sessions.set(j.session, session);
     }
-    socketInfo.uid = uid;
-    socketInfo.user = user;
-    user.sockets.add(socket);
-    const response: OkayMessage = {
-      okay: MessageTypes.Login,
+    session.sentBlocksNo = j.recvdBlocksNo;
+
+    const response: OkayJoinMessage = {
+      okay: MessageTypes.Join,
+      totalCount: room.log.length,
+      yourCount: session.recvBlocksNo,
     };
     return socket.emit("okay", response);
   }
 
-  join(socket: Socket, msg: JoinMessage) {
-    let info = this.sockets.get(socket);
-    if (!info.uid) {
+  push(socket: Socket, block: Block<any>) {
+    const session = this.sockets.get(socket);
+    if (!session) {
       const response: ErrorMessage = {
-        errorType: MessageTypes.Login,
-        reason: "Must login first",
+        errorType: MessageTypes.Push,
+        reason: "Join first",
       };
       return socket.emit("err", response);
     }
-    if (!!info.rid) {
-      const response: ErrorMessage = {
-        errorType: MessageTypes.Enter,
-        reason: "Already entered",
-      };
-      return socket.emit("err", response);
-    }
-    const rid = msg.rid;
-    let user: User = info.user;
-    // Check rid
-    let room = this.rooms.get(rid);
-    if (!room) {
-      // Create room
-      room = { log: [], userMessagesCount: new Map(), sockets: new Set() };
-      this.rooms.set(rid, room);
-    }
-    for (const s of user.sockets.keys()) {
-      const info = this.sockets.get(s);
-      if (info.rid == rid) {
-        // Close previous socket
-        const response: ErrorMessage = {
-          errorType: MessageTypes.Enter,
-          reason: "New connection",
-        };
-        s.emit("err", response);
-        s.disconnect();
-      }
-    }
-    info.rid = rid;
-    info.sentBlocksNo = msg.recvdBlocksNo;
-
-    let yourCount: Index = room.userMessagesCount.get(info.uid);
-    if (isNaN(yourCount)) {
-      yourCount = 0;
-      room.userMessagesCount.set(info.uid, 0);
-    }
-    const totalCount: Index = room.log.length;
-    if (totalCount > info.sentBlocksNo) {
-      if (info.state != SocketState.Idle)
-        throw new Error("Not idle, impossible.");
-      info.state = SocketState.Streaming;
-      this.sendMoreAux(room, socket, info);
-    }
-    let answer: OkayEnterMessage = {
-      okay: MessageTypes.Enter,
-      yourCount: yourCount,
-      totalCount: totalCount,
-    };
-    socket.emit("welcome", answer);
-  }
-
-  append(socket: Socket, block: Block<any>) {
-    const info = this.sockets.get(socket);
-    const rid = info.rid;
-    if (!rid) {
-      const response: ErrorMessage = {
-        errorType: MessageTypes.Append,
-        reason: "Enter first",
-      };
-      return socket.emit("err", response);
-    }
-    const room: Room = this.rooms.get(rid);
+    const room: Room = this.rooms.get(session.rid);
     block.index = room.log.length;
-    block.uid = info.uid;
+    block.uid = session.id;
     room.log.push(Object.freeze(block));
-    room.userMessagesCount.set(
-      info.uid,
-      room.userMessagesCount.get(info.uid) + 1
-    );
+    session.recvBlocksNo += 1;
     this.emitUpdate(room);
   }
 
   disconnect(socket: Socket, reason: string) {
-    const info = this.sockets.get(socket);
-    switch (info.state) {
+    const session = this.sockets.get(socket);
+    if (!session) return;
+    switch (session.socketState) {
       case SocketState.Idle:
-        this.freeSocket(socket, info);
+        this.freeSocket(session);
         break;
       default:
         // Will be deleted by this.sendMore
-        info.state = SocketState.Delete;
+        session.socketState = SocketState.Delete;
     }
   }
 
-  private freeSocket(socket: Socket, info: SocketInfo) {
+  private freeSocket(session: Session) {
+    const socket = session.socket;
     this.sockets.delete(socket);
-    const user = info.user;
-    if (user) user.sockets.delete(socket);
-    const rid = info.rid;
-    if (rid) this.rooms.get(rid).sockets.delete(socket);
+    if (socket.connected) socket.disconnect();
+    session.socket = null;
+    session.socketState = null;
   }
 }

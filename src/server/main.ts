@@ -1,6 +1,6 @@
 import ServerIO from "socket.io";
 import { Server } from "./server.js";
-import { LoginMessage, JoinMessage, Block } from "messages.js";
+import { JoinMessage, Block } from "messages.js";
 
 class SocketIOServer extends Server {
   constructor(port: number = 8080) {
@@ -14,10 +14,8 @@ class SocketIOServer extends Server {
     }).listen(port);
 
     io.sockets.on("connection", (socket: SocketIO.Socket) => {
-      this.connection(socket);
-      socket.on("login", (msg: LoginMessage) => this.login(socket, msg));
       socket.on("join", (msg: JoinMessage) => this.join(socket, msg));
-      socket.on("append", (b: Block<any>) => this.append(socket, b));
+      socket.on("append", (b: Block<any>) => this.push(socket, b));
       socket.on("disconnect", (reason) => this.disconnect(socket, reason));
     });
     Object.freeze(this);
