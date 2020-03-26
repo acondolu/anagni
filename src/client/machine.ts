@@ -1,7 +1,7 @@
 /**
  * A state-transition machine, parametrized
  */
-type Transition<Event, Action> = (e: Event) => AsyncGenerator<Action>;
+export type Transition<Event, Action> = (e: Event) => AsyncGenerator<Action>;
 
 /**
  * The identity machine: you reap what you sow.

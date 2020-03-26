@@ -7,16 +7,21 @@ import {
   ErrorMessage,
 } from "../types/messages.js";
 
+import { Transition } from "./machine.js";
+
 interface View {
   /**
    * A fatal error. Disconnects.
    */
-  error: (reason: string) => any;
+  error: (err: ControllerError, reason?: any) => any;
   connected: () => any;
   disconnected: () => any;
 }
 
-type Model = Transition<Block<any>, Block<any>>;
+interface Model {
+  replayUntil: (count: number) => void;
+  step: Transition<Block<any>, Block<any>>;
+}
 
 type Auth = {
   type: "simple";
@@ -30,6 +35,13 @@ enum ConnectionState {
   Down,
   Joining,
   Joined,
+}
+
+enum ControllerError {
+  AlreadyConnect,
+  SocketError,
+  JoinError,
+  ProtocolError,
 }
 
 export class Controller {
@@ -71,12 +83,12 @@ export class Controller {
    */
   connect() {
     if (this.socket) {
-      this.view.error("Already connected"); // FIXME:
+      this.view.error(ControllerError.AlreadyConnect);
     }
     this.socket = io.connect(this.addr);
     this.socket.on("error", (reason: string) => {
       this.disconnect();
-      this.view.error("Socket Error: " + reason); // FIXME:
+      this.view.error(ControllerError.SocketError, reason);
     });
     this.socket.on("connect", () => {
       console.log("connected");
@@ -89,18 +101,35 @@ export class Controller {
     });
     this.socket.on("err", (reason: ErrorMessage) => {
       this.disconnect();
-      this.view.error("Join Error: " + reason); // FIXME:
+      this.view.error(ControllerError.JoinError, reason);
     });
-    this.socket.on("okay", (m: any) => this.okay(m));
-    this.socket.on("push", (m: any) =>
-      this.recvBlockPromise.then(() => this.receiveBlock(m))
+    this.socket.on("okay", (ok: OkayMessage) => {
+      if (ok.yourCount > this.sendQueue.length) {
+        // it must be a replay situation
+        if (
+          this.sendQueue.length != 0 ||
+          this.recvdBlocksNo != 0 ||
+          this.sentBlocksNo != 0
+        ) {
+          this.disconnect();
+          this.view.error(
+            ControllerError.JoinError,
+            "wrong replay from future"
+          );
+        }
+        this.model.replayUntil(ok.yourCount);
+      } else {
+        this.sentBlocksNo = ok.yourCount;
+      }
+      this.view.connected();
+    });
+    this.socket.on(
+      "push",
+      (block: Block<any>) =>
+        (this.recvBlockPromise = this.recvBlockPromise.then(() =>
+          this.receiveBlock(block)
+        ))
     );
-    console.log("connect", this.socket.connected);
-  }
-
-  private okay(ok: OkayMessage) {
-    this.sentBlocksNo = ok.yourCount;
-    this.view.connected();
   }
 
   /**
@@ -109,7 +138,7 @@ export class Controller {
   private async receiveBlock(block: Block<any>): Promise<void> {
     // Check that we have all previous blocks
     if (this.recvdBlocksNo != block.index) {
-      return this.view.error("protocol error");
+      return this.view.error(ControllerError.ProtocolError);
     }
     this.recvdBlocksNo += 1;
     if (block.session == this.auth.session) {
@@ -117,7 +146,7 @@ export class Controller {
       // from queue and maybe send another one
       const sendQueueLen = this.sendQueue.length;
       if (this.sentBlocksNo >= sendQueueLen) {
-        return this.view.error("protocol error");
+        return this.view.error(ControllerError.ProtocolError);
       }
       const block2 = this.sendQueue[this.sentBlocksNo];
       // Check that msg == msg2
@@ -127,7 +156,10 @@ export class Controller {
         block.accessControlList != block2.accessControlList ||
         block.payload != block2.payload
       ) {
-        return this.view.error("protocol error: received different than sent");
+        return this.view.error(
+          ControllerError.ProtocolError,
+          "received different than sent"
+        );
       }
       this.sentBlocksNo += 1;
       if (this.sentBlocksNo < sendQueueLen) {
@@ -138,7 +170,7 @@ export class Controller {
       }
     }
     let wasEmpty = this.sentBlocksNo == this.sendQueue.length;
-    for await (const b of this.model(block)) {
+    for await (const b of this.model.step(block)) {
       this.sendQueue.push(b);
       if (wasEmpty) {
         this.socket.emit("push", b as Block<any>);
