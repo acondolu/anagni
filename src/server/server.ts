@@ -8,7 +8,7 @@ import {
   ErrorMessage,
 } from "../types/messages.js";
 
-interface Socket {
+export interface Socket {
   emit: (cmd: string, content: any) => void;
   disconnect: () => void;
   connected: boolean;
@@ -74,7 +74,7 @@ export class Server {
             accessControlList: b.accessControlList,
             payload: obscure ? null : b.payload,
           };
-          session.socket.emit("append", bCopy as Block<any>);
+          session.socket.emit("push", bCopy as Block<any>);
           session.sentBlocksNo += 1;
           // Call again
           this.sendMoreAux(room, session);
@@ -136,6 +136,7 @@ export class Server {
       };
       room.sessions.set(j.session, session);
     }
+    this.sockets.set(socket, session);
     session.sentBlocksNo = j.recvdBlocksNo;
 
     const response: OkayMessage = {
@@ -151,9 +152,15 @@ export class Server {
       return socket.emit("err", ErrorMessage.MustJoin);
     }
     const room: Room = this.rooms.get(session.rid);
-    block.index = room.log.length;
-    block.session = session.id;
-    room.log.push(Object.freeze(block));
+    room.log.push(
+      Object.freeze({
+        index: room.log.length,
+        session: session.id,
+        mode: block.mode,
+        accessControlList: block.accessControlList,
+        payload: block.payload,
+      })
+    );
     session.recvBlocksNo += 1;
     this.emitUpdate(room);
   }

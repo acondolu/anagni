@@ -2,7 +2,7 @@ import ServerIO from "socket.io";
 import { Server } from "./server.js";
 import { JoinMessage, Block } from "messages.js";
 
-class SocketIOServer extends Server {
+export class SocketIOServer extends Server {
   constructor(port: number = 8080) {
     super();
 
