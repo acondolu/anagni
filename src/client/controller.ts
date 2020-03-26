@@ -8,7 +8,9 @@ import {
 
 import { Transition } from "./machine.js";
 
-interface View {
+import io from "socket.io-client";
+
+export interface View {
   /**
    * A fatal error. Disconnects.
    */
@@ -17,12 +19,13 @@ interface View {
   disconnected: () => any;
 }
 
-interface Model {
-  replayUntil: (count: number) => void;
-  step: Transition<Block<any>, Block<any>>;
-}
+export type Model<T> = (
+  id: Binary,
+  emit: (b: Block<T>) => any,
+  replay: number
+) => Transition<Block<T>, Block<T>>;
 
-type Auth = {
+export type Auth = {
   type: "simple";
   session: Binary;
   room: Binary;
@@ -36,18 +39,19 @@ const enum ConnectionState {
   Joined,
 }
 
-const enum ControllerError {
+export const enum ControllerError {
   AlreadyConnect,
   SocketError,
   JoinError,
   ProtocolError,
 }
 
-export class Controller {
+export class Controller<T> {
   addr: string;
   auth: Auth;
   view: View;
-  model: Model;
+  step: Transition<Block<T>, Block<T>>;
+  model: Model<T>;
 
   socket: SocketIOClient.Socket;
   socketState: ConnectionState;
@@ -55,9 +59,9 @@ export class Controller {
   recvBlockPromise: Promise<void>;
   recvdBlocksNo: number;
   sentBlocksNo: number;
-  sendQueue: Array<Block<any>>;
+  sendQueue: Array<Block<T>>;
 
-  constructor(addr: string, auth: Auth, view: View, model: Model) {
+  constructor(addr: string, auth: Auth, view: View, model: Model<T>) {
     this.addr = addr;
     this.auth = auth;
     this.view = view;
@@ -106,6 +110,7 @@ export class Controller {
       if (ok.yourCount > this.sendQueue.length) {
         // it must be a replay situation
         if (
+          this.step ||
           this.sendQueue.length != 0 ||
           this.recvdBlocksNo != 0 ||
           this.sentBlocksNo != 0
@@ -116,25 +121,32 @@ export class Controller {
             "wrong replay from future"
           );
         }
-        this.model.replayUntil(ok.yourCount);
+        this.step = this.model(this.auth.session, this.emit, ok.yourCount);
       } else {
         this.sentBlocksNo = ok.yourCount;
+        if (!this.step) {
+          this.step = this.model(this.auth.session, this.emit, 0);
+        }
       }
       this.view.connected();
     });
     this.socket.on(
       "push",
-      (block: Block<any>) =>
+      (block: Block<T>) =>
         (this.recvBlockPromise = this.recvBlockPromise.then(() =>
           this.receiveBlock(block)
         ))
     );
   }
 
+  emit(block: Block<T>) {
+    throw new Error("FIXME");
+  }
+
   /**
    * When a new Block is received
    */
-  private async receiveBlock(block: Block<any>): Promise<void> {
+  private async receiveBlock(block: Block<T>): Promise<void> {
     // Check that we have all previous blocks
     if (this.recvdBlocksNo != block.index) {
       return this.view.error(ControllerError.ProtocolError);
@@ -162,17 +174,14 @@ export class Controller {
       }
       this.sentBlocksNo += 1;
       if (this.sentBlocksNo < sendQueueLen) {
-        this.socket.emit(
-          "push",
-          this.sendQueue[this.sentBlocksNo] as Block<any>
-        );
+        this.socket.emit("push", this.sendQueue[this.sentBlocksNo] as Block<T>);
       }
     }
     let wasEmpty = this.sentBlocksNo == this.sendQueue.length;
-    for await (const b of this.model.step(block)) {
+    for await (const b of this.step(block)) {
       this.sendQueue.push(b);
       if (wasEmpty) {
-        this.socket.emit("push", b as Block<any>);
+        this.socket.emit("push", b as Block<T>);
         wasEmpty = false;
       }
     }

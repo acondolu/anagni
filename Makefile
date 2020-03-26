@@ -21,6 +21,7 @@ test:
 dist:
 	cp -r build dist
 	cp src/hanabi/static/* dist/hanabi/
+	cp src/tic-tac-toe/static/* dist/tic-tac-toe/
 
 clean:
 	rm -rf dist
