@@ -85,9 +85,14 @@
       //   socket.emit("login", { uid: "ciao" });
       // };
       let x = new Client(
-        "http://localhost:8080",
-        { uid: "ciao", secret: "hello" },
-        { rid: "ciao" },
+        "http://localhost:8080", {
+          type: "simple",
+          session: "session",
+          room: "room",
+          sessionSecret: "secret",
+          roomSecret: "super-secret",
+        },
+        null,
         null
       );
       x.connect();
