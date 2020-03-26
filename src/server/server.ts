@@ -73,6 +73,7 @@ export class Server {
         let log = room.log;
         if (log.length > info.lastSent + 1) {
           // Send one more message
+          // FIXME: enforce access mode!
           socket.emit("append", log[log.length - 1]);
           this.sendMoreAux(room, socket, info);
         } else {
@@ -199,6 +200,7 @@ export class Server {
     const room: Room = this.rooms.get(rid);
     msg.index = room.log.length;
     room.log.push(Object.freeze(msg));
+    // TODO: enforce sender
     room.userMessagesCount.set(
       info.uid,
       room.userMessagesCount.get(info.uid) + 1

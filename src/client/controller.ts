@@ -1,4 +1,4 @@
-import { LoginMessage, RoomId } from "../types/messages.js";
+import { UserId, RoomId, AppendMessage } from "../types/messages.js";
 
 enum ClientState {
   Disconnected,
@@ -7,34 +7,37 @@ enum ClientState {
   Joined,
 }
 
-type Message = {};
-type Game = Transition<Message, Message>;
+type Block = AppendMessage;
 
-type RoomAuth = {
+type Game = Transition<Block, Block>;
+
+type Auth = {
+  type: "simple";
+  uid: UserId;
+  userSecret: string;
   rid: RoomId;
-  secret: string;
+  roomSecret: string;
 };
 
 export class Client {
-  game: Game;
   addr: string;
-  auth: LoginMessage;
-  room: RoomAuth;
+  auth: Auth;
+  game: Game;
   state: ClientState;
+
   socket: SocketIOClient.Socket;
 
-  fastForwardUntil: number;
-  results: Array<Message>;
+  recvBlockPromise: Promise<void>;
+  recvdBlocksNo: number;
+  sentBlocksNo: number;
+  sendQueue: Array<Block>;
 
-  counter: number;
-  queue: Array<Message>;
-
-  constructor(addr: string, auth: LoginMessage, room: RoomAuth, game: Game) {
+  constructor(addr: string, auth: Auth, game: Game) {
     this.game = game;
     this.addr = addr;
     this.auth = auth;
-    this.room = room;
     this.state = ClientState.Disconnected;
+    this.recvBlockPromise = Promise.resolve();
     console.log("Client");
   }
 
@@ -60,7 +63,9 @@ export class Client {
       this.socket = null;
     });
     this.socket.on("okay", (m: any) => this.okay(m));
-    this.socket.on("append", (m: any) => this.append(m));
+    this.socket.on("append", (m: any) =>
+      this.recvBlockPromise.then(() => this.receiveBlock(m))
+    );
     console.log("connect", this.socket.connected);
   }
 
@@ -70,7 +75,7 @@ export class Client {
       case ClientState.Connected:
         this.state = ClientState.Logged;
         this.socket.emit("join", {
-          rid: this.room.rid,
+          rid: this.auth.rid,
           lastKnownMsg: -1, // FIXME:
         });
         break;
@@ -83,16 +88,48 @@ export class Client {
 
   private done() {}
 
-  private append(m: any) {
-    const index = 666;
-    const result = this.game(m);
-    if (result) {
-      if (this.fastForwardUntil > index) {
-        // Fast-forward mode
-        this.results.push(result);
-      } else {
-        this.socket.emit("append", result);
+  /**
+   * When a new Block is received
+   */
+  private async receiveBlock(msg: Block): Promise<void> {
+    // Check that we have all previous blocks
+    if (this.recvdBlocksNo != msg.index) {
+      return this.fatalError("protocol error");
+    }
+    this.recvdBlocksNo += 1;
+    if (msg.uid == this.auth.uid) {
+      // Block sent by this user, remove
+      // from queue and maybe send another one
+      const sendQueueLen = this.sendQueue.length;
+      if (this.sentBlocksNo >= sendQueueLen) {
+        return this.fatalError("protocol error");
+      }
+      const msg2 = this.sendQueue[this.sentBlocksNo];
+      // Check that msg == msg2
+      // Note: do not compare index attribute
+      if (
+        msg.mode != msg2.mode ||
+        msg.accessControlList != msg2.accessControlList ||
+        msg.payload != msg2.payload
+      ) {
+        return this.fatalError("protocol error: received different than sent");
+      }
+      this.sentBlocksNo += 1;
+      if (this.sentBlocksNo < sendQueueLen) {
+        this.socket.emit("append", this.sendQueue[this.sentBlocksNo]);
       }
     }
+    let wasEmpty = this.sentBlocksNo == this.sendQueue.length;
+    for await (const b of this.game(msg)) {
+      this.sendQueue.push(b);
+      if (wasEmpty) {
+        this.socket.emit("append", b);
+        wasEmpty = false;
+      }
+    }
+  }
+
+  private fatalError(reason: string) {
+    document.write(reason);
   }
 }

@@ -20,7 +20,7 @@ export type JoinMessage = {
 export type AppendMessage = {
   index: Index;
   uid: UserId;
-  node: AccessControlMode;
+  mode: AccessControlMode;
   accessControlList: Array<UserId>;
   payload: string;
 };
