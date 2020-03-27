@@ -1,11 +1,11 @@
 import { Controller, Auth } from "../client/controller.js";
-import { Block, Binary, AccessControlMode } from "../types/messages.js";
+import { Block, AccessControlMode } from "../types/messages.js";
 import { TTTView, TTTViewImpl } from "./gui.js";
 import { SessionManager } from "../client/session.js";
 
 let name = "Lady Gaga";
 
-const auth: Auth = SessionManager.newSession();
+const auth: Auth = new SessionManager().newSession();
 
 const enum TTTEntry {
   Null,
@@ -30,16 +30,16 @@ class TTTModel {
   view: TTTView;
   // TTT-specific stuff
   table: Array<Array<TTTEntry>>;
-  me: Binary;
+  me: string;
   myName: string;
-  player: Binary;
+  player: string;
   playerName: string;
   round: number;
   amIfirst: boolean;
   done: boolean;
 
   constructor(
-    id: Binary,
+    id: string,
     name: string,
     replay: number,
     step: (b: Block<TTTMessage>) => any,
@@ -136,7 +136,7 @@ const ctrl: Controller<TTTMessage> = new Controller(
   "http://localhost:8080",
   auth,
   view,
-  (id: Binary, step: (b: Block<TTTMessage>) => any, replay: number) =>
+  (id: string, step: (b: Block<TTTMessage>) => any, replay: number) =>
     new TTTModel(id, name, replay, step, view).step
 );
 ctrl.connect();

@@ -1,5 +1,16 @@
 import { Auth } from "./controller.js";
-import { RoomId, Binary } from "src/types/messages.js";
+
+// Problem: node/browser compatibility
+class Crypto {
+  counter: number;
+  constructor() {
+    console.warn("!!! Crypto class implemented in session.ts is a STUB !!!");
+    this.counter = 0;
+  }
+  getRandomValues(a: Uint16Array) {
+    a[0] = this.counter++;
+  }
+}
 
 export class SessionManager {
   static sessionKey = "anagni-session";
@@ -9,32 +20,27 @@ export class SessionManager {
     this.crypto = new Crypto();
   }
 
-  static fromCache(): Auth | null {
+  fromCache(): Auth | null {
     if (typeof Storage === "undefined") return null;
     let result = sessionStorage.getItem(SessionManager.sessionKey);
     return JSON.parse(result);
   }
 
-  static newSession(room?: RoomId): Auth {
-    const session = SessionManager.random();
-    const secret = SessionManager.random();
-    if (!room) room = SessionManager.random();
+  newSession(room?: string): Auth {
+    const session = this.random();
+    const secret = this.random();
+    if (!room) room = this.random();
     const auth: Auth = {
       type: "simple",
       session,
       room,
-      sessionSecret: secret,
-      roomSecret: "super-secret", // FIXME: refactor, should not be here!!! only in the encryption layer
+      secret,
     };
     sessionStorage.setItem(SessionManager.sessionKey, JSON.stringify(auth));
     return auth;
   }
 
-  static random(): Binary {
-    return new ArrayBuffer(8);
-  }
-
-  randomS(): string {
+  random(): string {
     let arr: Uint16Array = new Uint16Array(4);
     this.crypto.getRandomValues(arr);
     return String.fromCharCode.apply(null, arr);

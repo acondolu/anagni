@@ -1,7 +1,4 @@
 import {
-  SessionId,
-  RoomId,
-  Binary,
   AccessControlMode,
   Block,
   JoinMessage,
@@ -22,9 +19,9 @@ const enum SocketState {
 }
 
 type Session = {
-  id: SessionId;
-  rid: RoomId;
-  secret: Binary;
+  id: string;
+  room: string;
+  secret: string;
   socket: Socket | null;
   socketState: SocketState;
   sentBlocksNo: number;
@@ -33,11 +30,11 @@ type Session = {
 
 type Room = {
   log: Array<Readonly<Block<any>>>;
-  sessions: Map<SessionId, Session>;
+  sessions: Map<string, Session>;
 };
 
 export class Server {
-  rooms: Map<RoomId, Room>;
+  rooms: Map<string, Room>;
   sockets: Map<Socket, Session>;
 
   constructor() {
@@ -115,7 +112,7 @@ export class Server {
     session = room.sessions.get(j.session);
     if (session) {
       // Check secret
-      if (session.secret != j.secret || session.rid != j.rid) {
+      if (session.secret != j.secret || session.room != j.rid) {
         return socket.emit("err", ErrorMessage.WrongSession);
       }
       if (session.socket) {
@@ -128,7 +125,7 @@ export class Server {
       // Create new session
       session = {
         id: j.session,
-        rid: j.rid,
+        room: j.rid,
         secret: j.secret,
         socket,
         socketState: SocketState.Idle,
@@ -152,7 +149,7 @@ export class Server {
     if (!session) {
       return socket.emit("err", ErrorMessage.MustJoin);
     }
-    const room: Room = this.rooms.get(session.rid);
+    const room: Room = this.rooms.get(session.room);
     room.log.push(
       Object.freeze({
         index: room.log.length,

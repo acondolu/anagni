@@ -1,5 +1,4 @@
 import {
-  Binary,
   Block,
   JoinMessage,
   OkayMessage,
@@ -20,17 +19,16 @@ export interface View {
 }
 
 export type Model<T> = (
-  id: Binary,
+  id: string,
   emit: (b: Block<T>) => any,
   replay: number
 ) => Transition<Block<T>, Block<T>>;
 
 export type Auth = {
   type: "simple";
-  session: Binary;
-  room: Binary;
-  sessionSecret: Binary;
-  roomSecret: string;
+  session: string;
+  room: string;
+  secret: string;
 };
 
 const enum ConnectionState {
@@ -99,7 +97,7 @@ export class Controller<T> {
       this.socket.emit("join", {
         session: this.auth.session,
         rid: this.auth.room,
-        secret: this.auth.sessionSecret,
+        secret: this.auth.secret,
       } as JoinMessage);
     });
     this.socket.on("err", (reason: ErrorMessage) => {

@@ -6,6 +6,7 @@ import {
   Block,
   AccessControlMode,
 } from "../types/messages.js";
+import { SessionManager } from "../client/session.js";
 
 // const _ = new SocketIOServer();
 import "mocha";
@@ -27,22 +28,18 @@ class MockSocket implements Socket {
   }
 }
 
-const session1 = new ArrayBuffer(8);
-session1[0] = 0x00;
-const session2 = new ArrayBuffer(8);
-session2[0] = 0xff;
-const secret1 = new ArrayBuffer(8);
-secret1[0] = 0xa0;
-const secret2 = new ArrayBuffer(8);
-secret2[0] = 0x0a;
-const room = new ArrayBuffer(8);
-room[0] = 0xaa;
-const unValidJoinMessage: JoinMessage = {
-  session: new ArrayBuffer(1),
-  rid: new ArrayBuffer(1),
-  secret: new ArrayBuffer(1),
-  recvdBlocksNo: 0,
-};
+const sm = new SessionManager();
+const session1 = sm.random();
+const session2 = sm.random();
+const secret1 = sm.random();
+const secret2 = sm.random();
+const room = sm.random();
+// const unValidJoinMessage: JoinMessage = {
+//   session: new ArrayBuffer(1),
+//   rid: new ArrayBuffer(1),
+//   secret: new ArrayBuffer(1),
+//   recvdBlocksNo: 0,
+// };
 const validJoinMessage: JoinMessage = {
   session: session1,
   rid: room,

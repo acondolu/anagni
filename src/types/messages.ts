@@ -1,8 +1,3 @@
-export type SessionId = ArrayBuffer;
-export type RoomId = ArrayBuffer;
-export type Binary = ArrayBuffer;
-export type Count = number;
-
 export const enum MessageTypes {
   Join,
   Push,
@@ -18,23 +13,23 @@ export const enum AccessControlMode {
 }
 
 export type JoinMessage = {
-  session: SessionId;
-  rid: RoomId;
-  secret: Binary;
-  recvdBlocksNo: Count;
+  session: string;
+  rid: string;
+  secret: string;
+  recvdBlocksNo: number;
 };
 
 export type Block<Content> = {
-  index: Count;
-  session: SessionId;
+  index: number;
+  session: string;
   mode: AccessControlMode;
-  accessControlList: Array<SessionId>;
+  accessControlList: Array<string>;
   payload: Content;
 };
 
 export type OkayMessage = {
-  totalCount: Count;
-  yourCount: Count;
+  totalCount: number;
+  yourCount: number;
 };
 export const enum ErrorMessage {
   AlreadyJoined,
