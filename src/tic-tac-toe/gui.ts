@@ -2,7 +2,16 @@ import { ControllerError, View } from "../client/controller.js";
 import { Prod } from "../types/common.js";
 
 export interface TTTView {
-  onMove: (i: number, j: number, value: string) => void;
+  // events
+  onNewPlayer: (index: number, name: string) => any;
+  onMove: (i: number, j: number, value: string) => any;
+  onWinner: (winner: number, name: string) => any;
+  onDraw: () => any;
+
+  requestName: () => Promise<string>;
+  requestMove: (
+    allowed: Array<Array<boolean>>
+  ) => Promise<Prod<number, number>>;
 }
 
 export class TTTViewImpl implements View, TTTView {
@@ -25,17 +34,23 @@ export class TTTViewImpl implements View, TTTView {
   async onMove(i: number, j: number, value: string) {
     this.table.rows.item(i).cells.item(j).innerText = value;
   }
-  async onNewPlayer(index: number, name: string, mark: undefined) {
+  async onNewPlayer(index: number, name: string) {
+    throw new Error("STUB");
+  }
+  async onWinner(index: number, name: string) {
+    throw new Error("STUB");
+  }
+  async onDraw() {
     throw new Error("STUB");
   }
 
   // TODO: ask for stuff
-  async inputMove(
+  async requestMove(
     allowed: Array<Array<boolean>>
   ): Promise<Prod<number, number>> {
     throw new Error("STUB"); // TODO:
   }
-  async inputName(): Promise<string> {
+  async requestName(): Promise<string> {
     throw new Error("STUB"); // TODO:
   }
 }

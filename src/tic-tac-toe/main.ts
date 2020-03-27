@@ -4,13 +4,14 @@ import { TTTView, TTTViewImpl } from "./gui.js";
 import { SessionManager } from "../client/session.js";
 
 const enum TTTMark {
-  Null,
-  X,
-  O,
+  Null = "",
+  X = "X",
+  O = "O",
 }
 
 const enum TTTState {
-  Introductions, // Players are introducing themselves
+  IntroX, // Waiting for Player X's intro
+  IntroO, // Waiting for Player O's intro
   TurnX, //
   TurnO, //
   Over, // The game is over, do not use this state
@@ -18,6 +19,11 @@ const enum TTTState {
   WinO, // O has won
   Draw, // Nobody wins
 }
+
+type Player = {
+  id: string;
+  name: string;
+};
 
 type TTTMessage =
   // Used for the initial introduction
@@ -27,18 +33,15 @@ type TTTMessage =
 
 class TTTModel implements Model<TTTMessage> {
   // Internal stuff
+  id: string;
   replay: number;
   // View
   view: TTTView;
   // TTT-specific stuff
   grid: Array<Array<TTTMark>>;
-  me: string;
-  myName: string;
-  player: string;
-  playerName: string;
-  round: number;
-  amIfirst: boolean;
   state: TTTState;
+  playerX: Player;
+  playerO: Player;
 
   constructor(view: TTTView) {
     this.view = view;
@@ -48,24 +51,18 @@ class TTTModel implements Model<TTTMessage> {
       this.grid[i] = new Array(3);
       for (let j = 0; j < 3; j++) this.grid[i][j] = TTTMark.Null;
     }
-    this.myName = this.playerName = this.round = undefined;
-    this.round = 0;
-    this.state = TTTState.Introductions;
+    this.state = TTTState.IntroX;
+    this.playerX = this.playerO = undefined;
   }
 
   async *init(id: string, replay: number): AsyncGenerator<Block<TTTMessage>> {
-    this.me = id;
+    this.id = id;
     this.replay = replay;
     // Introduce yourself, but only if we are not in replay mode
-    //
-    if (this.replay == 0)
-      yield {
-        index: undefined,
-        session: id,
-        mode: AccessControlMode.All,
-        accessControlList: undefined,
-        payload: { type: "hello", name: name },
-      };
+    if (this.replay == 0) {
+      let name: string = await this.view.requestName();
+      yield this.wrapBlock({ type: "hello", name: name });
+    }
   }
 
   async *step(b: Block<TTTMessage>): AsyncGenerator<Block<TTTMessage>> {
@@ -75,54 +72,85 @@ class TTTModel implements Model<TTTMessage> {
     }
     switch (b.payload.type) {
       case "hello":
-        if (!isNaN(this.round)) {
-          throw new Error("Too late for introductions");
-        }
-        const name = b.payload.name;
-        if (name.length === 0) {
-          throw new Error("Name cannot be empty");
-        }
-        if (b.session == this.me) {
-          if (this.myName) {
-            throw new Error("Playing twice!");
-          }
-          this.myName = b.payload.name;
-          this.amIfirst = !this.playerName;
-          if (this.playerName) {
-            this.round = 0;
-          }
-          return;
-        } else {
-          if (this.playerName) {
-            throw new Error("Not playing!");
-          }
-          this.player = b.session;
-          this.playerName = name;
-          if (this.myName) {
-            this.round = 0;
+        switch (this.state) {
+          case TTTState.IntroX:
+            this.playerX = {
+              id: b.session,
+              name: b.payload.name,
+            };
+            this.state = TTTState.IntroO;
             break;
-          }
-          return;
+          case TTTState.IntroO:
+            this.playerO = {
+              id: b.session,
+              name: b.payload.name,
+            };
+            this.state = TTTState.TurnX;
+            break;
+          default:
+            this.error("Late introduction");
         }
+        if (b.payload.name.length == 0) {
+          return this.error("Empty name");
+        }
+        break;
       case "move":
-        // Check if allowed:
+        // Check if the move is legal
         if (this.grid[b.payload.i][b.payload.j] != TTTMark.Null) {
-          throw new Error("Invalid move");
+          return this.error("Invalid move");
         }
         let symbol: TTTMark =
-          (b.session == this.me) == this.amIfirst ? TTTMark.X : TTTMark.O;
+          b.session == this.playerX.id ? TTTMark.X : TTTMark.O;
         this.grid[b.payload.i][b.payload.j] = symbol;
-        if (this.updateState() > TTTState.Over) return;
-        if (b.session == this.me) {
-          if (this.replay > 0) {
-            yield b;
-            this.replay -= 1;
+        if (this.updateState() > TTTState.Over) {
+          switch (this.state) {
+            case TTTState.WinX:
+              return this.view.onWinner(0, this.playerX.name);
+            case TTTState.WinO:
+              return this.view.onWinner(1, this.playerO.name);
+            case TTTState.Draw:
+              return this.view.onDraw();
           }
           return;
-        } else break;
+        }
+        // If replaying:
+        if (b.session == this.id && this.replay > 0) {
+          this.replay -= 1;
+          yield b;
+        }
     }
     if (this.replay > 0) return;
-    // this is your turn: play!
+    // Play, if this is your turn
+    switch (this.state) {
+      case TTTState.TurnO:
+        if (this.id == this.playerO.id) {
+          let allowed = this.allowed();
+          const { a, b } = await this.view.requestMove(allowed);
+          yield this.wrapBlock({ type: "move", i: a, j: b, mark: TTTMark.O });
+        }
+        break;
+      case TTTState.TurnX:
+        if (this.id == this.playerX.id) {
+          let allowed = this.allowed();
+          const { a, b } = await this.view.requestMove(allowed);
+          yield this.wrapBlock({ type: "move", i: a, j: b, mark: TTTMark.X });
+        }
+        break;
+    }
+  }
+
+  private allowed(): boolean[][] {
+    let g: boolean[][] = new Array();
+    for (const row of this.grid) {
+      const r: boolean[] = new Array();
+      g.push(r);
+      for (const entry of row) r.push(entry == TTTMark.Null);
+    }
+    return g;
+  }
+
+  private error(reason: string) {
+    throw new Error(reason);
   }
 
   /**
@@ -133,6 +161,16 @@ class TTTModel implements Model<TTTMessage> {
   private updateState(): TTTState {
     // TODO: FIXME:
     return null;
+  }
+
+  private wrapBlock(payload: TTTMessage): Block<TTTMessage> {
+    return {
+      index: undefined,
+      session: undefined,
+      mode: AccessControlMode.All,
+      accessControlList: undefined,
+      payload,
+    };
   }
 }
 
@@ -146,3 +184,4 @@ function main() {
   const ctrl: Controller<TTTMessage> = new Controller(auth, view, model);
   ctrl.connect();
 }
+main();

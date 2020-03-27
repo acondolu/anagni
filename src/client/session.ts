@@ -12,6 +12,21 @@ class Crypto {
   }
 }
 
+class Storage {
+  map: Map<string, string>;
+  constructor() {
+    console.warn("!!! Storage class implemented in session.ts is a STUB !!!");
+    this.map = new Map();
+  }
+  getItem(k: string) {
+    return this.map.get(k);
+  }
+  setItem(k: string, v: string) {
+    this.map.set(k, v);
+  }
+}
+const sessionStorage = new Storage();
+
 export class SessionManager {
   static sessionKey = "anagni-session";
   crypto: Crypto;
