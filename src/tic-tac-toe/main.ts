@@ -21,7 +21,7 @@ const enum TTTState {
   Undecided,
   WinX,
   WinO,
-  Draw
+  Draw,
 }
 
 type TTTMessage =
