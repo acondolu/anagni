@@ -1,16 +1,11 @@
 import { Controller, Auth } from "../client/controller.js";
 import { Block, Binary, AccessControlMode } from "../types/messages.js";
 import { TTTView, TTTViewImpl } from "./gui.js";
+import { SessionManager } from "../client/session.js";
 
 let name = "Lady Gaga";
-const tmp = new ArrayBuffer(8);
-const auth: Auth = {
-  type: "simple",
-  session: tmp,
-  room: tmp,
-  sessionSecret: tmp,
-  roomSecret: "super-secret", // FIXME: refactor, should not be here!!! only in the encryption layer
-};
+
+const auth: Auth = SessionManager.newSession();
 
 const enum TTTEntry {
   Null,
