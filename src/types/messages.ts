@@ -12,6 +12,7 @@ export const enum MessageTypes {
 
 // Access control
 export const enum AccessControlMode {
+  All,
   Only,
   Except,
 }

@@ -1,11 +1,8 @@
-import {
-  Controller,
-  Auth,
-  ControllerError,
-  View,
-} from "../client/controller.js";
-import { Block, Binary } from "../types/messages.js";
+import { Controller, Auth } from "../client/controller.js";
+import { Block, Binary, AccessControlMode } from "../types/messages.js";
+import { TTTView, TTTViewImpl } from "./gui.js";
 
+let name = "Lady Gaga";
 const tmp = new ArrayBuffer(8);
 const auth: Auth = {
   type: "simple",
@@ -15,25 +12,27 @@ const auth: Auth = {
   roomSecret: "super-secret", // FIXME: refactor, should not be here!!! only in the encryption layer
 };
 
-const view: View = {
-  error: (err: ControllerError, reason?: any) => {},
-  connected: () => {},
-  disconnected: () => {},
-};
-
 const enum TTTEntry {
   Null,
   X,
   O,
 }
+const enum TTTState {
+  Undecided,
+  WinX,
+  WinO,
+  Draw
+}
 
 type TTTMessage =
   | { type: "hello"; name: string }
-  | { type: "play"; i: number; j: number; x: TTTEntry };
+  | { type: "move"; i: number; j: number; x: TTTEntry };
 
 class TTTModel {
   // Internal stuff
   replay: number;
+  // View
+  view: TTTView;
   // TTT-specific stuff
   table: Array<Array<TTTEntry>>;
   me: Binary;
@@ -44,9 +43,16 @@ class TTTModel {
   amIfirst: boolean;
   done: boolean;
 
-  constructor(id: Binary, replay: number) {
+  constructor(
+    id: Binary,
+    name: string,
+    replay: number,
+    step: (b: Block<TTTMessage>) => any,
+    view: TTTView
+  ) {
     this.me = id;
     this.replay = replay;
+    this.view = view;
     this.table = new Array(3);
     for (let i = 0; i < 3; i++) {
       this.table[i] = new Array(3);
@@ -55,6 +61,15 @@ class TTTModel {
     this.myName = this.playerName = this.round = undefined;
     this.round = undefined;
     this.done = false;
+    // Introduce yourself
+    if (this.replay == 0)
+      step({
+        index: undefined,
+        session: id,
+        mode: AccessControlMode.All,
+        accessControlList: undefined,
+        payload: { type: "hello", name: name },
+      });
   }
 
   async *step(b: Block<TTTMessage>): AsyncGenerator<Block<TTTMessage>> {
@@ -90,7 +105,7 @@ class TTTModel {
           }
           return;
         }
-      case "play":
+      case "move":
         // Check if allowed:
         if (this.table[b.payload.i][b.payload.j] != TTTEntry.Null) {
           throw new Error("Invalid move");
@@ -99,7 +114,7 @@ class TTTModel {
           (b.session == this.me) == this.amIfirst ? TTTEntry.X : TTTEntry.O;
         this.table[b.payload.i][b.payload.j] = symbol;
         // Check if this is over... TODO:
-        if (this.checkOver()) {
+        if (this.state()) {
           this.done = true;
           return;
         }
@@ -115,17 +130,18 @@ class TTTModel {
     // this is your turn: play!
   }
 
-  private checkOver() {
+  private state(): TTTState {
     // TODO: FIXME:
-    return true;
+    return TTTState.Undecided;
   }
 }
 
+let view = new TTTViewImpl();
 const ctrl: Controller<TTTMessage> = new Controller(
   "http://localhost:8080",
   auth,
   view,
-  (id: Binary, _: (b: Block<TTTMessage>) => any, replay: number) =>
-    new TTTModel(id, replay).step
+  (id: Binary, step: (b: Block<TTTMessage>) => any, replay: number) =>
+    new TTTModel(id, name, replay, step, view).step
 );
 ctrl.connect();
