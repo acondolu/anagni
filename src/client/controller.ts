@@ -18,17 +18,17 @@ export interface View {
   disconnected: () => any;
 }
 
-export type Model<T> = (
-  id: string,
-  emit: (b: Block<T>) => any,
-  replay: number
-) => Transition<Block<T>, Block<T>>;
+export interface Model<T> {
+  init: (id: string, replay: number) => AsyncGenerator<Block<T>>;
+  step: Transition<Block<T>, Block<T>>;
+}
 
 export type Auth = {
   type: "simple";
   session: string;
   room: string;
   secret: string;
+  server: string; // URL
 };
 
 const enum ConnectionState {
@@ -45,10 +45,8 @@ export const enum ControllerError {
 }
 
 export class Controller<T> {
-  addr: string;
   auth: Auth;
   view: View;
-  step: Transition<Block<T>, Block<T>>;
   model: Model<T>;
 
   socket: SocketIOClient.Socket;
@@ -59,14 +57,17 @@ export class Controller<T> {
   sentBlocksNo: number;
   sendQueue: Array<Block<T>>;
 
-  constructor(addr: string, auth: Auth, view: View, model: Model<T>) {
-    this.addr = addr;
+  sentOne: boolean;
+
+  constructor(auth: Auth, view: View, model: Model<T>) {
     this.auth = auth;
     this.view = view;
     this.model = model;
     this.socket = undefined;
     this.socketState = ConnectionState.Down;
-    this.recvBlockPromise = Promise.resolve();
+    this.recvBlockPromise = undefined;
+
+    this.sentOne = false;
   }
 
   /**
@@ -86,7 +87,7 @@ export class Controller<T> {
     if (this.socket) {
       this.view.error(ControllerError.AlreadyConnect);
     }
-    this.socket = io.connect(this.addr);
+    this.socket = io.connect(this.auth.server);
     this.socket.on("error", (reason: string) => {
       this.disconnect();
       this.view.error(ControllerError.SocketError, reason);
@@ -108,7 +109,7 @@ export class Controller<T> {
       if (ok.yourCount > this.sendQueue.length) {
         // it must be a replay situation
         if (
-          this.step ||
+          this.recvBlockPromise ||
           this.sendQueue.length != 0 ||
           this.recvdBlocksNo != 0 ||
           this.sentBlocksNo != 0
@@ -116,15 +117,13 @@ export class Controller<T> {
           this.disconnect();
           this.view.error(
             ControllerError.JoinError,
-            "wrong replay from future"
+            "wrong replay from future (re-init Controller)"
           );
         }
-        this.step = this.model(this.auth.session, this.emit, ok.yourCount);
+        this.initModel(ok.yourCount);
       } else {
         this.sentBlocksNo = ok.yourCount;
-        if (!this.step) {
-          this.step = this.model(this.auth.session, this.emit, 0);
-        }
+        if (!this.recvBlockPromise) this.initModel();
       }
       this.view.connected();
     });
@@ -137,8 +136,34 @@ export class Controller<T> {
     );
   }
 
-  emit(block: Block<T>) {
-    throw new Error("FIXME");
+  checkSend() {
+    if (!this.socket) {
+      this.sentOne = false;
+      return;
+    }
+    let can = this.sentBlocksNo < this.sendQueue.length;
+    if (can && !this.sentOne) {
+      this.socket.emit("push", this.sendQueue[this.sentBlocksNo] as Block<T>);
+      this.sentOne = true;
+    }
+  }
+
+  async initModel(c?: number) {
+    if (this.recvBlockPromise) {
+      throw new Error("The model has already been initialised");
+    }
+
+    this.recvBlockPromise = new Promise(async () => {
+      let init = this.model.init(this.auth.session, c);
+      let check = true;
+      for await (const b of init) {
+        this.sendQueue.push(b);
+        if (check) {
+          this.checkSend();
+          check = false;
+        }
+      }
+    });
   }
 
   /**
@@ -175,12 +200,12 @@ export class Controller<T> {
         this.socket.emit("push", this.sendQueue[this.sentBlocksNo] as Block<T>);
       }
     }
-    let wasEmpty = this.sentBlocksNo == this.sendQueue.length;
-    for await (const b of this.step(block)) {
+    let check = true;
+    for await (const b of this.model.step(block)) {
       this.sendQueue.push(b);
-      if (wasEmpty) {
-        this.socket.emit("push", b as Block<T>);
-        wasEmpty = false;
+      if (check) {
+        this.checkSend();
+        check = false;
       }
     }
   }

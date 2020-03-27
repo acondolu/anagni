@@ -1,74 +1,78 @@
-import { Controller, Auth } from "../client/controller.js";
+import { Controller, Auth, Model } from "../client/controller.js";
 import { Block, AccessControlMode } from "../types/messages.js";
 import { TTTView, TTTViewImpl } from "./gui.js";
 import { SessionManager } from "../client/session.js";
 
 let name = "Lady Gaga";
+let server = "http://localhost:8080";
+const auth: Auth = new SessionManager().newSession(server);
 
-const auth: Auth = new SessionManager().newSession();
-
-const enum TTTEntry {
+const enum TTTMark {
   Null,
   X,
   O,
 }
+
 const enum TTTState {
-  Undecided,
-  WinX,
-  WinO,
-  Draw,
+  Introductions, // Players are introducing themselves
+  TurnX, //
+  TurnO, //
+  Over, // The game is over, do not use this state
+  WinX, // X has won
+  WinO, // O has won
+  Draw, // Nobody wins
 }
 
 type TTTMessage =
+  // Used for the initial introduction
   | { type: "hello"; name: string }
-  | { type: "move"; i: number; j: number; x: TTTEntry };
+  // Marks the (i,j)-entry of the grid
+  | { type: "move"; i: number; j: number; mark: TTTMark };
 
-class TTTModel {
+class TTTModel implements Model<TTTMessage> {
   // Internal stuff
   replay: number;
   // View
   view: TTTView;
   // TTT-specific stuff
-  table: Array<Array<TTTEntry>>;
+  grid: Array<Array<TTTMark>>;
   me: string;
   myName: string;
   player: string;
   playerName: string;
   round: number;
   amIfirst: boolean;
-  done: boolean;
+  state: TTTState;
 
-  constructor(
-    id: string,
-    name: string,
-    replay: number,
-    step: (b: Block<TTTMessage>) => any,
-    view: TTTView
-  ) {
-    this.me = id;
-    this.replay = replay;
+  constructor(view: TTTView) {
     this.view = view;
-    this.table = new Array(3);
+    // Init grid
+    this.grid = new Array(3);
     for (let i = 0; i < 3; i++) {
-      this.table[i] = new Array(3);
-      for (let j = 0; j < 3; j++) this.table[i][j] = TTTEntry.Null;
+      this.grid[i] = new Array(3);
+      for (let j = 0; j < 3; j++) this.grid[i][j] = TTTMark.Null;
     }
     this.myName = this.playerName = this.round = undefined;
-    this.round = undefined;
-    this.done = false;
+    this.round = 0;
+    this.state = TTTState.Introductions;
+  }
+
+  async *init(id: string, replay: number): AsyncGenerator<Block<TTTMessage>> {
     // Introduce yourself
+    this.me = id;
+    this.replay = replay;
     if (this.replay == 0)
-      step({
+      yield {
         index: undefined,
         session: id,
         mode: AccessControlMode.All,
         accessControlList: undefined,
         payload: { type: "hello", name: name },
-      });
+      };
   }
 
   async *step(b: Block<TTTMessage>): AsyncGenerator<Block<TTTMessage>> {
-    if (this.done) return;
+    if (this.state > TTTState.Over) return;
     switch (b.payload.type) {
       case "hello":
         if (!isNaN(this.round)) {
@@ -102,17 +106,13 @@ class TTTModel {
         }
       case "move":
         // Check if allowed:
-        if (this.table[b.payload.i][b.payload.j] != TTTEntry.Null) {
+        if (this.grid[b.payload.i][b.payload.j] != TTTMark.Null) {
           throw new Error("Invalid move");
         }
-        let symbol: TTTEntry =
-          (b.session == this.me) == this.amIfirst ? TTTEntry.X : TTTEntry.O;
-        this.table[b.payload.i][b.payload.j] = symbol;
-        // Check if this is over... TODO:
-        if (this.state()) {
-          this.done = true;
-          return;
-        }
+        let symbol: TTTMark =
+          (b.session == this.me) == this.amIfirst ? TTTMark.X : TTTMark.O;
+        this.grid[b.payload.i][b.payload.j] = symbol;
+        if (this.updateState() > TTTState.Over) return;
         if (b.session == this.me) {
           if (this.replay > 0) {
             yield b;
@@ -125,18 +125,18 @@ class TTTModel {
     // this is your turn: play!
   }
 
-  private state(): TTTState {
+  /**
+   * Update `this.state` by checking whether
+   * any player has won
+   * @returns The updated game state
+   */
+  private updateState(): TTTState {
     // TODO: FIXME:
-    return TTTState.Undecided;
+    return null;
   }
 }
 
 let view = new TTTViewImpl();
-const ctrl: Controller<TTTMessage> = new Controller(
-  "http://localhost:8080",
-  auth,
-  view,
-  (id: string, step: (b: Block<TTTMessage>) => any, replay: number) =>
-    new TTTModel(id, name, replay, step, view).step
-);
+let model = new TTTModel(view);
+const ctrl: Controller<TTTMessage> = new Controller(auth, view, model);
 ctrl.connect();

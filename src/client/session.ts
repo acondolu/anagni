@@ -26,7 +26,7 @@ export class SessionManager {
     return JSON.parse(result);
   }
 
-  newSession(room?: string): Auth {
+  newSession(server: string, room?: string): Auth {
     const session = this.random();
     const secret = this.random();
     if (!room) room = this.random();
@@ -35,6 +35,7 @@ export class SessionManager {
       session,
       room,
       secret,
+      server,
     };
     sessionStorage.setItem(SessionManager.sessionKey, JSON.stringify(auth));
     return auth;
