@@ -7,8 +7,62 @@
       name="viewport"
       content="width=device-width, initial-scale=1, shrink-to-fit=no"
     />
+    <link rel="stylesheet" href="./style.css" />
     <script src="../../node_modules/socket.io-client/dist/socket.io.js"></script>
-    <script type="module" src="main.js"></script>
+    <script type="module" src="./main.js"></script>
   </head>
-  <body></body>
+  <body>
+    <h1>🎮 Tic-tac-toe Example / Anagni</h1>
+    <div>⚡️ Connection state: <span id="connectionState"></span></div>
+    <br />
+    <div id="init">
+      To begin, either:
+      <ul>
+        <li>
+          Start a new game: <br />
+          <input type="text" value="http://localhost:8080" id="serverInput" />
+          <input type="button" value="Start" id="newSessionBtn" />
+        </li>
+        <br />
+        <li>
+          Join an existing game: <br />
+          <input type="text" value="..." id="sessionIdInput" />
+          <input type="button" value="Join" id="joinSessionBtn" />
+        </li>
+        <br />
+        <li>
+          Continue a previous game session: <br />
+          <input type="text" value="..." id="sessionIdInput" />
+          <input type="button" value="Continue" id="continueSessionBtn" />
+        </li>
+      </ul>
+    </div>
+
+    <div id="play">
+      <p id="gameState"></p>
+      <table id="grid">
+        <tr>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+      </table>
+      <div id="gameInfo">
+        <p class="mono">GameId = <input type="text" id="gameId" disabled /></p>
+        <p class="mono">
+          SessionId = <input type="text" id="sessionId" disabled />
+        </p>
+      </div>
+    </div>
+  </body>
 </html>

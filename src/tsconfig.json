@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2018",
+    "removeComments": true,
     "allowSyntheticDefaultImports": true,
     "outDir": "../build/",
     "baseUrl": "..",

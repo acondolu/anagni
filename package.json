@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node dist/server/main.js",
+    "start": "node dist/server/start.js",
     "build": "make build",
     "dist": "make dist",
     "test": "make build test"

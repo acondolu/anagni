@@ -7,7 +7,7 @@ import {
 
 import { Transition } from "./machine.js";
 
-import io from "socket.io-client";
+// import io from "socket.io-client";
 
 export interface View {
   /**
@@ -44,7 +44,7 @@ export const enum ControllerError {
   ProtocolError,
 }
 
-export class Controller<T> {
+export class Control<T> {
   auth: Auth;
   view: View;
   model: Model<T>;
@@ -67,6 +67,7 @@ export class Controller<T> {
     this.socketState = ConnectionState.Down;
     this.recvBlockPromise = undefined;
 
+    this.sendQueue = new Array();
     this.sentOne = false;
   }
 
@@ -76,8 +77,8 @@ export class Controller<T> {
   disconnect() {
     this.socketState = ConnectionState.Down;
     const socket = this.socket;
-    this.socket = null;
     if (socket.connected) this.socket.disconnect();
+    this.socket = null;
   }
 
   /**
@@ -89,11 +90,10 @@ export class Controller<T> {
     }
     this.socket = io.connect(this.auth.server);
     this.socket.on("error", (reason: string) => {
-      this.disconnect();
       this.view.onError(ControllerError.SocketError, reason);
+      this.disconnect();
     });
     this.socket.on("connect", () => {
-      console.log("connected");
       this.socketState = ConnectionState.Joining;
       this.socket.emit("join", {
         session: this.auth.session,

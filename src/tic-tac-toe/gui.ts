@@ -14,25 +14,18 @@ export interface TTTView {
   ) => Promise<Prod<number, number>>;
 }
 
-export class TTTViewImpl implements View, TTTView {
-  table: HTMLTableElement;
+export class TTTViewImpl implements TTTView {
+  grid: HTMLTableElement;
+  state: HTMLParagraphElement;
 
-  constructor() {}
-
-  // View events
-  onError(err: ControllerError, reason?: any) {
-    throw new Error("STUB"); // TODO:
-  }
-  onConnect() {
-    throw new Error("STUB"); // TODO:
-  }
-  onDisconnect() {
-    throw new Error("STUB"); // TODO:
+  constructor() {
+    this.grid = document.getElementById("grid") as HTMLTableElement;
+    this.state = document.getElementById("gameState") as HTMLParagraphElement;
   }
 
   // TTTView events
   async onMove(i: number, j: number, value: string) {
-    this.table.rows.item(i).cells.item(j).innerText = value;
+    this.grid.rows.item(i).cells.item(j).innerText = value;
   }
   async onNewPlayer(index: number, name: string) {
     throw new Error("STUB");
