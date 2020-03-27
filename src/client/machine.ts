@@ -1,3 +1,5 @@
+import { Sum } from "../types/common";
+
 /**
  * A state-transition machine, parametrized
  */
@@ -11,12 +13,6 @@ function idMachine<T>(): Transition<T, T> {
     yield e;
   };
 }
-
-/**
- * The tagged sum of two given types.
- * @typedef Sum
- */
-type Sum<A, B> = { where: false; content: A } | { where: true; content: B };
 
 /**
  * Composition of machines:

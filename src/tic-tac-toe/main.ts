@@ -3,10 +3,6 @@ import { Block, AccessControlMode } from "../types/messages.js";
 import { TTTView, TTTViewImpl } from "./gui.js";
 import { SessionManager } from "../client/session.js";
 
-let name = "Lady Gaga";
-let server = "http://localhost:8080";
-const auth: Auth = new SessionManager().newSession(server);
-
 const enum TTTMark {
   Null,
   X,
@@ -58,9 +54,10 @@ class TTTModel implements Model<TTTMessage> {
   }
 
   async *init(id: string, replay: number): AsyncGenerator<Block<TTTMessage>> {
-    // Introduce yourself
     this.me = id;
     this.replay = replay;
+    // Introduce yourself, but only if we are not in replay mode
+    //
     if (this.replay == 0)
       yield {
         index: undefined,
@@ -72,7 +69,10 @@ class TTTModel implements Model<TTTMessage> {
   }
 
   async *step(b: Block<TTTMessage>): AsyncGenerator<Block<TTTMessage>> {
-    if (this.state > TTTState.Over) return;
+    if (this.state > TTTState.Over) {
+      // On game over, ignore all following messages
+      return;
+    }
     switch (b.payload.type) {
       case "hello":
         if (!isNaN(this.round)) {
@@ -136,7 +136,13 @@ class TTTModel implements Model<TTTMessage> {
   }
 }
 
-let view = new TTTViewImpl();
-let model = new TTTModel(view);
-const ctrl: Controller<TTTMessage> = new Controller(auth, view, model);
-ctrl.connect();
+function main() {
+  let name = "Lady Gaga";
+  let server = "http://localhost:8080";
+  const auth: Auth = new SessionManager().newSession(server);
+
+  let view = new TTTViewImpl();
+  let model = new TTTModel(view);
+  const ctrl: Controller<TTTMessage> = new Controller(auth, view, model);
+  ctrl.connect();
+}

@@ -13,9 +13,9 @@ export interface View {
   /**
    * A fatal error. Disconnects.
    */
-  error: (err: ControllerError, reason?: any) => any;
-  connected: () => any;
-  disconnected: () => any;
+  onError: (err: ControllerError, reason?: any) => any;
+  onConnect: () => any;
+  onDisconnect: () => any;
 }
 
 export interface Model<T> {
@@ -85,12 +85,12 @@ export class Controller<T> {
    */
   connect() {
     if (this.socket) {
-      this.view.error(ControllerError.AlreadyConnect);
+      this.view.onError(ControllerError.AlreadyConnect);
     }
     this.socket = io.connect(this.auth.server);
     this.socket.on("error", (reason: string) => {
       this.disconnect();
-      this.view.error(ControllerError.SocketError, reason);
+      this.view.onError(ControllerError.SocketError, reason);
     });
     this.socket.on("connect", () => {
       console.log("connected");
@@ -103,7 +103,7 @@ export class Controller<T> {
     });
     this.socket.on("err", (reason: ErrorMessage) => {
       this.disconnect();
-      this.view.error(ControllerError.JoinError, reason);
+      this.view.onError(ControllerError.JoinError, reason);
     });
     this.socket.on("okay", (ok: OkayMessage) => {
       if (ok.yourCount > this.sendQueue.length) {
@@ -115,7 +115,7 @@ export class Controller<T> {
           this.sentBlocksNo != 0
         ) {
           this.disconnect();
-          this.view.error(
+          this.view.onError(
             ControllerError.JoinError,
             "wrong replay from future (re-init Controller)"
           );
@@ -125,7 +125,7 @@ export class Controller<T> {
         this.sentBlocksNo = ok.yourCount;
         if (!this.recvBlockPromise) this.initModel();
       }
-      this.view.connected();
+      this.view.onConnect();
     });
     this.socket.on(
       "push",
@@ -172,7 +172,7 @@ export class Controller<T> {
   private async receiveBlock(block: Block<T>): Promise<void> {
     // Check that we have all previous blocks
     if (this.recvdBlocksNo != block.index) {
-      return this.view.error(ControllerError.ProtocolError);
+      return this.view.onError(ControllerError.ProtocolError);
     }
     this.recvdBlocksNo += 1;
     if (block.session == this.auth.session) {
@@ -180,7 +180,7 @@ export class Controller<T> {
       // from queue and maybe send another one
       const sendQueueLen = this.sendQueue.length;
       if (this.sentBlocksNo >= sendQueueLen) {
-        return this.view.error(ControllerError.ProtocolError);
+        return this.view.onError(ControllerError.ProtocolError);
       }
       const block2 = this.sendQueue[this.sentBlocksNo];
       // Check that msg == msg2
@@ -190,7 +190,7 @@ export class Controller<T> {
         block.accessControlList != block2.accessControlList ||
         block.payload != block2.payload
       ) {
-        return this.view.error(
+        return this.view.onError(
           ControllerError.ProtocolError,
           "received different than sent"
         );
