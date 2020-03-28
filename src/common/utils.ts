@@ -16,7 +16,7 @@ class Base64 {
         x = x >> (avail -= 6);
       } else {
         // plus (6-avail) from next
-        cur = (i++ == len) ? 0 : s.charCodeAt(i);
+        cur = i++ == len ? 0 : s.charCodeAt(i);
         const rest = 6 - avail;
         const newAvail = 16 - rest;
         x = (x << rest) + ((cur >> (16 - rest)) << (16 - rest));
