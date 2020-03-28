@@ -24,10 +24,21 @@ td {
   width: 100px;
 }
 
+td:hover {
+  cursor: pointer;
+  background-color: #ff69b4;
+}
+
 #connectionState {
   border-bottom: 1px dotted gray;
 }
 
-.mono {
+#gameInfo {
+  margin-top: 20px;
+}
+
+.binary {
   font-family: monospace;
+  margin-left: 20px;
+  padding: 10px;
 }

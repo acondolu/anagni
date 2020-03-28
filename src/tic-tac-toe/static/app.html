@@ -57,11 +57,21 @@
           <td></td>
         </tr>
       </table>
+
       <div id="gameInfo">
-        <p class="mono">GameId = <input type="text" id="gameId" disabled /></p>
-        <p class="mono">
-          SessionId = <input type="text" id="sessionId" disabled />
-        </p>
+        💁‍♀️ Internal information:
+        <ul>
+          <li>
+            To invite a friend to play, communicate them the following
+            <i>game identifier</i>:
+            <div class="binary" id="gameId"></div>
+          </li>
+          <li>
+            Store the following session identifier to restore the game in case
+            you reload the page or restart the browser:
+            <div class="binary" id="sessionId"></div>
+          </li>
+        </ul>
       </div>
     </div>
   </body>

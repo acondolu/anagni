@@ -8,7 +8,8 @@ class Crypto {
     this.counter = 0;
   }
   getRandomValues(a: Uint16Array) {
-    a[0] = this.counter++;
+    // a[0] = this.counter++;
+    return window.crypto.getRandomValues(a);
   }
 }
 
@@ -51,6 +52,7 @@ export class SessionManager {
       room,
       secret,
       server,
+      // additional: ""
     };
     sessionStorage.setItem(SessionManager.sessionKey, JSON.stringify(auth));
     return auth;
@@ -72,3 +74,36 @@ export class SessionManager {
     return buf;
   }
 }
+
+// interface Auth {
+//   server: string; // URL
+//   session: string;
+//   room: string;
+// }
+
+// class SimpleAuth implements Auth {
+//   type: "simple";
+//   server: string; // URL
+//   session: string;
+//   room: string;
+//   secret: string;
+//   additional: string;
+
+//   static parse(str: string): Auth {
+//     const a = new Auth();
+//     if (str[0] != "\xa0")
+//       // Only type="simple" supported for now
+//       return;
+//     a.
+//     return a;
+//   }
+
+//   stringify(): string {
+//     const b = new Array<string>();
+//     b.push("\xa0");
+
+//     return btoa(
+//       escape(auth.room + auth.session + auth.secret)
+//     );
+//   }
+// };

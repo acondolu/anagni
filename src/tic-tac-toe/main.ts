@@ -18,6 +18,14 @@ class BeginPage implements View {
       const auth = new SessionManager().newSession(server);
       this.start(auth);
     };
+    // document.getElementById("joinSessionBtn").onclick = () => {
+    //   const sessionId = (document.getElementById(
+    //     "sessionIdInput"
+    //   ) as HTMLInputElement).value;
+    //   const auth = new SessionManager().newSession(server);
+    //   this.start(auth);
+    // };
+
     // States
     this.init = document.getElementById("init") as HTMLDivElement;
     this.play = document.getElementById("play") as HTMLDivElement;
@@ -32,10 +40,10 @@ class BeginPage implements View {
   start(auth: Auth) {
     this.init.style.display = "none";
     console.log(auth);
-    (document.getElementById("gameId") as HTMLInputElement).value = btoa(
+    (document.getElementById("gameId") as HTMLDivElement).textContent = btoa(
       auth.room
     );
-    (document.getElementById("sessionId") as HTMLInputElement).value = btoa(
+    (document.getElementById("sessionId") as HTMLDivElement).textContent = btoa(
       auth.room + auth.session + auth.secret
     );
     this.ctrl = new Control(auth, this, new TicTatToe());
