@@ -8,8 +8,8 @@ class Crypto {
     this.counter = 0;
   }
   getRandomValues(a: Uint16Array) {
-    // a[0] = this.counter++;
-    return window.crypto.getRandomValues(a);
+    a[0] = this.counter++;
+    // return window.crypto.getRandomValues(a);
   }
 }
 
