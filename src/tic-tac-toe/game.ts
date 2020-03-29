@@ -1,7 +1,7 @@
 import { Model } from "../client/controller.js";
 import { Statement } from "../types/commands.js";
 import { TTTView, Input } from "./gui.js";
-import { Sum } from "../types/common.js";
+import { Sum, right } from "../types/common.js";
 
 const enum TTTMark {
   Null = "",
@@ -27,9 +27,9 @@ type Player = {
 
 export type TTTMessage =
   // Used for the initial introduction
-  | { type: "hello"; name: string }
+  | { _: "hello"; name: string }
   // Marks the (i,j)-entry of the grid
-  | { type: "move"; i: number; j: number; mark: TTTMark };
+  | { _: "move"; i: number; mark: TTTMark };
 
 export class TicTatToe implements Model<TTTMessage, Input> {
   // Internal stuff
@@ -37,7 +37,7 @@ export class TicTatToe implements Model<TTTMessage, Input> {
   // View
   view: TTTView;
   // TTT-specific stuff
-  grid: Array<Array<TTTMark>>;
+  squares: TTTMark[];
   state: TTTState;
   playerX: Player;
   playerO: Player;
@@ -45,19 +45,18 @@ export class TicTatToe implements Model<TTTMessage, Input> {
   constructor(view: TTTView) {
     this.view = view;
     // Init grid
-    this.grid = new Array(3);
-    for (let i = 0; i < 3; i++) {
-      this.grid[i] = new Array(3);
-      for (let j = 0; j < 3; j++) this.grid[i][j] = TTTMark.Null;
+    this.squares = new Array(3);
+    for (let i = 0; i < 9; i++) {
+      this.squares[i] = TTTMark.Null;
     }
     this.state = TTTState.IntroX;
-    this.playerX = this.playerO = undefined as any;
+    this.playerX = this.playerO = undefined;
   }
 
   async *init(id: string): AsyncGenerator<Sum<Statement<TTTMessage>, Input>> {
     this.id = id;
     // Ask for name input
-    return { where: true, content: { type: "name" } };
+    yield right({ _: "name" });
   }
 
   async *dispatch(
@@ -67,7 +66,7 @@ export class TicTatToe implements Model<TTTMessage, Input> {
       // On game over, ignore all messages that follow
       return;
     }
-    switch (b.payload.type) {
+    switch (b.payload._) {
       case "hello":
         switch (this.state) {
           case TTTState.IntroX:
@@ -93,12 +92,12 @@ export class TicTatToe implements Model<TTTMessage, Input> {
         break;
       case "move":
         // Check if the move is legal
-        if (this.grid[b.payload.i][b.payload.j] != TTTMark.Null) {
+        if (this.squares[b.payload.i] != TTTMark.Null) {
           return this.error("Invalid move");
         }
         let symbol: TTTMark =
           b.replica == this.playerX.id ? TTTMark.X : TTTMark.O;
-        this.grid[b.payload.i][b.payload.j] = symbol;
+        this.squares[b.payload.i] = symbol;
         if (this.updateState() > TTTState.Over) {
           switch (this.state) {
             case TTTState.WinX:
@@ -114,33 +113,22 @@ export class TicTatToe implements Model<TTTMessage, Input> {
     // Play, if this is your turn
     switch (this.state) {
       case TTTState.TurnO:
-        if (this.id == this.playerO.id) {
-          yield {
-            where: true,
-            content: { _: "turn", board: this.allowed() },
-          };
-        }
+        if (this.id == this.playerO.id)
+          yield right({ _: "turn", board: this.allowed() });
         break;
       case TTTState.TurnX:
-        if (this.id == this.playerX.id) {
-          yield {
-            where: true,
-            content: { _: "turn", board: this.allowed() },
-          };
-        }
+        if (this.id == this.playerX.id)
+          yield right({ _: "turn", board: this.allowed() });
         break;
     }
   }
 
   private allowed(): boolean[] {
-    let g: boolean[][] = new Array();
-    for (const row of this.grid) {
-      const r: boolean[] = new Array();
-      g.push(r);
-      for (const entry of row) r.push(entry == TTTMark.Null);
+    let ret: boolean[] = new Array();
+    for (const s of this.squares) {
+      ret.push(s === TTTMark.Null);
     }
-    // FIXME: improtant!
-    return g as any;
+    return ret;
   }
 
   private error(reason: string) {
@@ -153,7 +141,36 @@ export class TicTatToe implements Model<TTTMessage, Input> {
    * @returns The updated game state
    */
   private updateState(): TTTState {
-    // TODO: FIXME:
-    return null as any;
+    const squares = this.squares;
+    const lines: number[][] = [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6],
+    ];
+    let winner: TTTMark = TTTMark.Null;
+    for (let i = 0; i < 8; i++) {
+      const [a, b, c] = lines[i];
+      if (
+        squares[a] != TTTMark.Null &&
+        squares[a] === squares[b] &&
+        squares[b] === squares[c]
+      ) {
+        winner = squares[a];
+        break;
+      }
+    }
+    switch (winner) {
+      case TTTMark.Null:
+        return this.state;
+      case TTTMark.O:
+        return (this.state = TTTState.WinO);
+      case TTTMark.X:
+        return (this.state = TTTState.WinX);
+    }
   }
 }

@@ -4,7 +4,7 @@ import { Statement } from "../types/commands.js";
 export interface TTTView {
   // events
   onNewPlayer: (index: number, name: string) => any;
-  onMove: (i: number, j: number, value: string) => any;
+  onMove: (i: number, value: string) => any;
   onWinner: (winner: number, name: string) => any;
   onDraw: () => any;
 }
@@ -26,8 +26,8 @@ export class TTTViewImpl implements TTTView {
   }
 
   // TTTView events
-  async onMove(i: number, j: number, value: string) {
-    this.grid.rows.item(i).cells.item(j).innerText = value;
+  async onMove(i: number, value: string) {
+    this.grid.rows.item(i / 3).cells.item(i % 3).innerText = value;
   }
   async onNewPlayer(index: number, name: string) {
     throw new Error("STUB");
