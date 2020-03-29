@@ -1,6 +1,6 @@
 import ServerIO from "socket.io";
 import { Server } from "./server.js";
-import { JoinMessage, Statement } from "../types/messages.js";
+import { AuthRequest, Statement } from "../types/commands.js";
 
 export class SocketIOServer<T> extends Server<T> {
   constructor(port: number) {
@@ -14,7 +14,7 @@ export class SocketIOServer<T> extends Server<T> {
     }).listen(port);
 
     io.sockets.on("connection", (socket: SocketIO.Socket) => {
-      socket.on("join", (j: JoinMessage) => this.join(socket, j));
+      socket.on("join", (j: AuthRequest) => this.join(socket, j));
       socket.on("append", (b: Statement<any>) => this.push(socket, b));
       socket.on("disconnect", (reason) => this.disconnect(socket, reason));
     });

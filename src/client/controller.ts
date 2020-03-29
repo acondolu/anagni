@@ -1,9 +1,9 @@
 import {
   Statement,
-  JoinMessage,
-  OkayMessage,
-  ErrorMessage,
-} from "../types/messages.js";
+  AuthRequest,
+  WelcomeResponse,
+  FailureResponse,
+} from "../types/commands.js";
 
 import { Transition, composeU } from "./machine.js";
 import { Sum } from "../types/common.js";
@@ -50,24 +50,24 @@ export class Control<T, U> {
   view: View;
   model: Model<T, U>;
 
-  socket: SocketIOClient.Socket | undefined;
+  socket: SocketIOClient.Socket;
   socketState: ConnectionState;
 
-  recvPromise: Promise<void> | undefined;
+  recvPromise: Promise<void>;
   receivedStatementsBlocksNo: number;
   sentStatementsNo: number;
   sendQueue: Array<Statement<T>>;
 
   sentOne: boolean;
 
-  input: (ue: U) => Promise<Statement<T> | undefined>;
+  input: (ue: U) => Promise<Statement<T>>;
   replay: number;
 
   constructor(
     auth: Auth,
     view: View,
     model: Model<T, U>,
-    input: (ue: U) => Promise<Statement<T> | undefined>
+    input: (ue: U) => Promise<Statement<T>>
   ) {
     this.auth = auth;
     this.view = view;
@@ -111,13 +111,13 @@ export class Control<T, U> {
         replica: this.auth.replica,
         db: this.auth.db,
         secret: this.auth.secret,
-      } as JoinMessage);
+      } as AuthRequest);
     });
-    socket.on("err", (reason: ErrorMessage) => {
+    socket.on("err", (reason: FailureResponse) => {
       this.disconnect();
       this.view.onError(ControllerError.JoinError, reason);
     });
-    socket.on("okay", (ok: OkayMessage) => {
+    socket.on("okay", (ok: WelcomeResponse) => {
       if (ok.yourStatementsCount > this.sendQueue.length) {
         // it must be a replay situation
         if (
@@ -208,8 +208,8 @@ export class Control<T, U> {
       // Check that msg == msg2
       // Note: do not compare index attribute
       if (
-        statement.mode != stmt2.mode ||
-        statement.accessControlList != stmt2.accessControlList ||
+        // statement.mode != stmt2.mode ||
+        // statement.accessControlList != stmt2.accessControlList ||
         statement.payload != stmt2.payload
       ) {
         return this.view.onError(
@@ -227,7 +227,7 @@ export class Control<T, U> {
       }
     }
     let check = true;
-    let dispatch = composeU((u: U): Promise<Statement<T> | undefined> => {
+    let dispatch = composeU((u: U): Promise<Statement<T>> => {
       if (this.replay > 0) {
         this.replay -= 1;
         return Promise.resolve(undefined);

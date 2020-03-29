@@ -1,5 +1,5 @@
 import { TTTMessage } from "./game.js";
-import { Statement, AccessControlMode } from "../types/messages.js";
+import { Statement } from "../types/commands.js";
 
 export interface TTTView {
   // events
@@ -53,8 +53,8 @@ export class TTTViewImpl implements TTTView {
     return {
       index: undefined,
       replica: undefined,
-      mode: AccessControlMode.All,
-      accessControlList: [],
+      // mode: AccessControlMode.All,
+      // accessControlList: [],
       payload,
     };
   }

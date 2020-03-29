@@ -1,4 +1,4 @@
-import "../types/messages.js";
+import "../types/commands.js";
 import "../client/machine.js";
 import "../client/controller.js";
 import "../hanabi/model.js";

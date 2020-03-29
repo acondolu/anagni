@@ -1,17 +1,11 @@
-export const enum MessageTypes {
-  Join,
-  Okay,
-  Error,
-}
-
 // Access control
-export const enum AccessControlMode {
-  All,
-  Only,
-  Except,
-}
+// export const enum AccessControlMode {
+//   All,
+//   Only,
+//   Except,
+// }
 
-export type JoinMessage = {
+export type AuthRequest = {
   replica: string;
   db: string;
   secret: string;
@@ -21,16 +15,16 @@ export type JoinMessage = {
 export type Statement<T> = {
   index: number;
   replica: string;
-  mode: AccessControlMode;
-  accessControlList: Array<string>;
+  // mode: AccessControlMode;
+  // accessControlList: Array<string>;
   payload: T;
 };
 
-export type OkayMessage = {
+export type WelcomeResponse = {
   totalStatementsCount: number;
   yourStatementsCount: number;
 };
-export const enum ErrorMessage {
+export const enum FailureResponse {
   AlreadyJoined,
   WrongSession,
   OtherConnection,

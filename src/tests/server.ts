@@ -1,11 +1,10 @@
 import { Server, Socket } from "../server/server.js";
 import {
-  JoinMessage,
-  MessageTypes,
-  ErrorMessage,
+  AuthRequest,
+  FailureResponse,
   Statement,
-  AccessControlMode,
-} from "../types/messages.js";
+  // AccessControlMode,
+} from "../types/commands.js";
 import { SessionManager } from "../client/session.js";
 
 // const _ = new SocketIOServer();
@@ -40,13 +39,13 @@ const room = sm.random();
 //   secret: new ArrayBuffer(1),
 //   recvdBlocksNo: 0,
 // };
-const validJoinMessage: JoinMessage = {
+const validJoinMessage: AuthRequest = {
   replica: replica1,
   db: room,
   secret: secret1,
   receivedStatementsNo: 0,
 };
-const validJoinMessage2: JoinMessage = {
+const validJoinMessage2: AuthRequest = {
   replica: replica2,
   db: room,
   secret: secret2,
@@ -56,8 +55,8 @@ const validJoinMessage2: JoinMessage = {
 const validStatement: Statement<any> = {
   index: undefined,
   replica: undefined,
-  mode: AccessControlMode.Except,
-  accessControlList: [],
+  // mode: AccessControlMode.Except,
+  // accessControlList: [],
   payload: "hello",
 };
 
@@ -73,7 +72,7 @@ describe("Server", function () {
   it("join twice", function (done) {
     const srv = new Server();
     const socket = new MockSocket(function (cmd, content) {
-      if (cmd == "err" && content == ErrorMessage.AlreadyJoined) done();
+      if (cmd == "err" && content == FailureResponse.AlreadyJoined) done();
     });
     srv.join(socket, validJoinMessage);
     srv.join(socket, validJoinMessage);
@@ -82,7 +81,7 @@ describe("Server", function () {
   it("push before join", function (done) {
     const srv = new Server();
     const socket = new MockSocket(function (cmd, content) {
-      if (cmd == "err" && content == ErrorMessage.MustJoin) done();
+      if (cmd == "err" && content == FailureResponse.MustJoin) done();
     });
     srv.push(socket, validStatement);
   });
@@ -91,11 +90,11 @@ describe("Server", function () {
     const srv = new Server();
     const socket = new MockSocket(function (cmd, content: Statement<string>) {
       if (cmd == "push") {
-        // Warning: not checking accessControlList
         if (
           content.index == 0 &&
           content.replica == validJoinMessage.replica &&
-          content.mode == validStatement.mode &&
+          // Warning: not checking accessControlList
+          // content.mode == validStatement.mode &&
           content.payload == validStatement.payload
         )
           done();
@@ -111,11 +110,11 @@ describe("Server", function () {
     const N = 10;
     const socket = new MockSocket(function (cmd, content: Statement<string>) {
       if (cmd == "push") {
-        // Warning: not checking accessControlList
         if (
           content.index == counter &&
           content.replica == validJoinMessage.replica &&
-          content.mode == validStatement.mode &&
+          // content.mode == validStatement.mode &&
+          // Warning: not checking accessControlList
           content.payload == validStatement.payload
         ) {
           counter += 1;
@@ -136,11 +135,11 @@ describe("Server", function () {
     const socket2 = new MockSocket(function () {});
     const socket = new MockSocket(function (cmd, content: Statement<string>) {
       if (cmd == "push") {
-        // Warning: not checking accessControlList
         if (
           content.index == counter &&
           content.replica == validJoinMessage2.replica &&
-          content.mode == validStatement.mode &&
+          // content.mode == validStatement.mode &&
+          // Warning: not checking accessControlList
           content.payload == validStatement.payload
         ) {
           counter += 1;

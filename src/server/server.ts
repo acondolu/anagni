@@ -1,10 +1,10 @@
 import {
-  AccessControlMode,
+  // AccessControlMode,
   Statement,
-  JoinMessage,
-  OkayMessage,
-  ErrorMessage,
-} from "../types/messages.js";
+  AuthRequest,
+  WelcomeResponse,
+  FailureResponse,
+} from "../types/commands.js";
 
 export interface Socket {
   emit: (command: string, content: any) => void;
@@ -51,24 +51,24 @@ export class Server<T> {
         if (log.length > replica.sentStatementsNo) {
           // Send one more log
           // Enforce access mode!
-          const b = log[replica.sentStatementsNo];
-          let obscure = false;
-          switch (b.mode) {
-            case AccessControlMode.Only:
-              obscure = b.accessControlList.indexOf(replica.id) == -1;
-              break;
-            case AccessControlMode.Except:
-              obscure = b.accessControlList.indexOf(replica.id) != -1;
-              break;
-          }
-          const bCopy: Statement<T> = {
-            index: b.index,
-            replica: b.replica,
-            mode: b.mode,
-            accessControlList: b.accessControlList,
-            payload: obscure ? null : b.payload,
-          };
-          replica.socket.emit("push", bCopy as Statement<T>);
+          const b: Statement<T> = log[replica.sentStatementsNo];
+          // let obscure = false;
+          // switch (b.mode) {
+          //   case AccessControlMode.Only:
+          //     obscure = b.accessControlList.indexOf(replica.id) == -1;
+          //     break;
+          //   case AccessControlMode.Except:
+          //     obscure = b.accessControlList.indexOf(replica.id) != -1;
+          //     break;
+          // }
+          // const bCopy: Statement<T> = {
+          //   index: b.index,
+          //   replica: b.replica,
+          //   mode: b.mode,
+          //   accessControlList: b.accessControlList,
+          //   payload: obscure ? null : b.payload,
+          // };
+          replica.socket.emit("push", b);
           replica.sentStatementsNo += 1;
           // Call again
           this.sendMore(db, replica);
@@ -95,11 +95,11 @@ export class Server<T> {
     }
   }
 
-  join(socket: Socket, j: JoinMessage) {
+  join(socket: Socket, j: AuthRequest) {
     let replica: Replica = this.sockets.get(socket);
     //
     if (replica) {
-      return socket.emit("err", ErrorMessage.AlreadyJoined);
+      return socket.emit("err", FailureResponse.AlreadyJoined);
     }
     //
     let db = this.dbs.get(j.db);
@@ -116,11 +116,11 @@ export class Server<T> {
     if (replica) {
       // Check secret
       if (replica.secret != j.secret || replica.db != j.db) {
-        return socket.emit("err", ErrorMessage.WrongSession);
+        return socket.emit("err", FailureResponse.WrongSession);
       }
       if (replica.socket) {
         // Invalidate previous socket connection
-        socket.emit("err", ErrorMessage.OtherConnection);
+        socket.emit("err", FailureResponse.OtherConnection);
         socket.disconnect();
       }
       replica.socket = socket;
@@ -140,7 +140,7 @@ export class Server<T> {
     this.sockets.set(socket, replica);
     replica.sentStatementsNo = j.receivedStatementsNo;
 
-    const response: OkayMessage = {
+    const response: WelcomeResponse = {
       totalStatementsCount: db.log.length,
       yourStatementsCount: replica.receivedStatementsNo,
     };
@@ -150,15 +150,15 @@ export class Server<T> {
   push(socket: Socket, stmt: Statement<T>) {
     const replica = this.sockets.get(socket);
     if (!replica) {
-      return socket.emit("err", ErrorMessage.MustJoin);
+      return socket.emit("err", FailureResponse.MustJoin);
     }
     const db = this.dbs.get(replica.db);
     db.log.push(
       Object.freeze({
         index: db.log.length,
         replica: replica.id,
-        mode: stmt.mode,
-        accessControlList: stmt.accessControlList,
+        // mode: stmt.mode,
+        // accessControlList: stmt.accessControlList,
         payload: stmt.payload,
       } as Statement<T>)
     );

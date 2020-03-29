@@ -1,5 +1,5 @@
 import { Model } from "../client/controller.js";
-import { Statement } from "../types/messages.js";
+import { Statement } from "../types/commands.js";
 import { TTTView, Input } from "./gui.js";
 import { Sum } from "../types/common.js";
 

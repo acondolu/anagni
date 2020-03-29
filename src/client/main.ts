@@ -1,3 +1,3 @@
-import "../types/messages.js";
+import "../types/commands.js";
 import "./machine.js";
 import "./controller.js";
