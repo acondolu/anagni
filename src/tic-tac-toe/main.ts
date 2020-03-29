@@ -1,14 +1,14 @@
 import { Auth, Control, View, ControllerError } from "../client/controller.js";
 import { SessionManager } from "../client/session.js";
-import { TicTatToe, TTTMessage } from "./game.js";
-import { TTTViewImpl, Input } from "./gui.js";
+import { TicTatToe, TTTStatement } from "./game.js";
+import { TTTViewImpl, InputRequest } from "./gui.js";
 
 class BeginPage implements View {
   init: HTMLDivElement;
   connectionState: HTMLSpanElement;
   play: HTMLDivElement;
 
-  ctrl: Control<TTTMessage, Input>;
+  ctrl: Control<TTTStatement, InputRequest>;
 
   constructor() {
     // Attach events handlers

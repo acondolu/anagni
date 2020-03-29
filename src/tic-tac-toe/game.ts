@@ -1,6 +1,6 @@
 import { Model } from "../client/controller.js";
 import { Statement } from "../types/commands.js";
-import { TTTView, Input } from "./gui.js";
+import { TTTView, InputRequest } from "./gui.js";
 import { Sum, right } from "../types/common.js";
 
 const enum TTTMark {
@@ -10,11 +10,11 @@ const enum TTTMark {
 }
 
 const enum TTTState {
-  IntroX, // Waiting for Player X's intro
-  IntroO, // Waiting for Player O's intro
-  TurnX, //
-  TurnO, //
-  Over, // The game is over, do not use this state
+  IntroX, // Waiting for Player X's name
+  IntroO, // Waiting for Player O's name
+  TurnX, // X's turn
+  TurnO, // O's turn
+  Over, // Game over! (Unused state)
   WinX, // X has won
   WinO, // O has won
   Draw, // Nobody wins
@@ -25,13 +25,13 @@ type Player = {
   name: string;
 };
 
-export type TTTMessage =
+export type TTTStatement =
   // Used for the initial introduction
-  | { _: "hello"; name: string }
-  // Marks the (i,j)-entry of the grid
+  | { _: "name"; name: string }
+  // Marks the i-th entry of the grid
   | { _: "move"; i: number; mark: TTTMark };
 
-export class TicTatToe implements Model<TTTMessage, Input> {
+export class TicTatToe implements Model<TTTStatement, InputRequest> {
   // Internal stuff
   id: string;
   // View
@@ -53,21 +53,27 @@ export class TicTatToe implements Model<TTTMessage, Input> {
     this.playerX = this.playerO = undefined;
   }
 
-  async *init(id: string): AsyncGenerator<Sum<Statement<TTTMessage>, Input>> {
+  async *init(
+    id: string
+  ): AsyncGenerator<Sum<Statement<TTTStatement>, InputRequest>> {
+    // Store the identifier of this replica/player
     this.id = id;
-    // Ask for name input
+    // Request the name of the human user
     yield right({ _: "name" });
   }
 
+  /**
+   *
+   */
   async *dispatch(
-    b: Statement<TTTMessage>
-  ): AsyncGenerator<Sum<Statement<TTTMessage>, Input>> {
+    b: Statement<TTTStatement>
+  ): AsyncGenerator<Sum<never, InputRequest>> {
     if (this.state > TTTState.Over) {
       // On game over, ignore all messages that follow
       return;
     }
     switch (b.payload._) {
-      case "hello":
+      case "name":
         switch (this.state) {
           case TTTState.IntroX:
             this.playerX = {
@@ -114,11 +120,11 @@ export class TicTatToe implements Model<TTTMessage, Input> {
     switch (this.state) {
       case TTTState.TurnO:
         if (this.id == this.playerO.id)
-          yield right({ _: "turn", board: this.allowed() });
+          yield right({ _: "move", board: this.allowed() });
         break;
       case TTTState.TurnX:
         if (this.id == this.playerX.id)
-          yield right({ _: "turn", board: this.allowed() });
+          yield right({ _: "move", board: this.allowed() });
         break;
     }
   }

@@ -41,7 +41,7 @@ const enum ConnectionState {
 export const enum ControllerError {
   AlreadyConnect,
   SocketError,
-  JoinError,
+  AuthError,
   ProtocolError,
 }
 
@@ -54,7 +54,7 @@ export class Control<T, U> {
   socketState: ConnectionState;
 
   recvPromise: Promise<void>;
-  receivedStatementsBlocksNo: number;
+  receivedStatementsNo: number;
   sentStatementsNo: number;
   sendQueue: Array<Statement<T>>;
 
@@ -115,7 +115,7 @@ export class Control<T, U> {
     });
     socket.on("err", (reason: FailureResponse) => {
       this.disconnect();
-      this.view.onError(ControllerError.JoinError, reason);
+      this.view.onError(ControllerError.AuthError, reason);
     });
     socket.on("okay", (ok: WelcomeResponse) => {
       if (ok.yourStatementsCount > this.sendQueue.length) {
@@ -123,12 +123,12 @@ export class Control<T, U> {
         if (
           this.recvPromise ||
           this.sendQueue.length != 0 ||
-          this.receivedStatementsBlocksNo != 0 ||
+          this.receivedStatementsNo != 0 ||
           this.sentStatementsNo != 0
         ) {
           this.disconnect();
           this.view.onError(
-            ControllerError.JoinError,
+            ControllerError.AuthError,
             "wrong replay from future (re-init Controller)"
           );
         }
@@ -193,10 +193,10 @@ export class Control<T, U> {
    */
   private async receiveStatement(statement: Statement<T>): Promise<void> {
     // Check that we have all previous statements
-    if (this.receivedStatementsBlocksNo != statement.index) {
+    if (this.receivedStatementsNo != statement.index) {
       return this.view.onError(ControllerError.ProtocolError);
     }
-    this.receivedStatementsBlocksNo += 1;
+    this.receivedStatementsNo += 1;
     if (statement.replica == this.auth.replica) {
       // Block sent by this user, remove
       // from queue and maybe send another one

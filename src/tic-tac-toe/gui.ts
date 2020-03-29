@@ -1,4 +1,4 @@
-import { TTTMessage } from "./game.js";
+import { TTTStatement } from "./game.js";
 import { Statement } from "../types/commands.js";
 
 export interface TTTView {
@@ -9,10 +9,10 @@ export interface TTTView {
   onDraw: () => any;
 }
 
-export type Input =
+export type InputRequest =
   | { _: "name" }
   | {
-      _: "turn";
+      _: "move";
       board: boolean[];
     };
 
@@ -39,17 +39,17 @@ export class TTTViewImpl implements TTTView {
     throw new Error("STUB");
   }
 
-  async input(i: Input): Promise<Statement<TTTMessage>> {
+  async input(i: InputRequest): Promise<Statement<TTTStatement>> {
     // TODO: also, use this.makeStatement
     switch (i._) {
       case "name":
         throw new Error("STUB"); // TODO:
-      case "turn":
+      case "move":
         throw new Error("STUB"); // TODO:
     }
   }
 
-  private makeStatement(payload: TTTMessage): Statement<TTTMessage> {
+  private makeStatement(payload: TTTStatement): Statement<TTTStatement> {
     return {
       index: undefined,
       replica: undefined,
