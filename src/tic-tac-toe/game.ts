@@ -3,6 +3,12 @@ import { Statement } from "../types/commands.js";
 import { TTTView, InputRequest, Mark } from "./gui.js";
 import { Sum, right as input } from "../types/common.js";
 
+export type GameEvent =
+  // Used for the initial introduction
+  | { _: "name"; name: string }
+  // Mark the i-th entry of the grid
+  | { _: "move"; i: number; mark: Mark };
+
 const enum GameState {
   IntroX, // Waiting for Player X's name
   IntroO, // Waiting for Player O's name
@@ -19,22 +25,16 @@ type Player = {
   name: string;
 };
 
-export type GameEvent =
-  // Used for the initial introduction
-  | { _: "name"; name: string }
-  // Mark the i-th entry of the grid
-  | { _: "move"; i: number; mark: Mark };
-
 export class TicTatToe implements Model<GameEvent, InputRequest> {
   // Internal stuff
-  id: string;
+  private id: string;
   // View
-  view: TTTView;
+  private view: TTTView;
   // TTT-specific stuff
-  grid: Mark[];
-  state: GameState;
-  playerX: Player;
-  playerO: Player;
+  private grid: Mark[];
+  private state: GameState;
+  private playerX: Player;
+  private playerO: Player;
 
   constructor(view: TTTView) {
     this.view = view;
@@ -43,9 +43,7 @@ export class TicTatToe implements Model<GameEvent, InputRequest> {
     this.playerX = this.playerO = undefined;
   }
 
-  async *init(
-    id: string
-  ): AsyncGenerator<Sum<Statement<GameEvent>, InputRequest>> {
+  async *init(id: string): AsyncGenerator<Sum<never, InputRequest>> {
     // Store the identifier of this replica/player
     this.id = id;
     // Request the name of the human user
