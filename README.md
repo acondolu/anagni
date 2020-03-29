@@ -16,11 +16,11 @@ Unfortunately this project is in early alpha stage, and it lacks many of the fea
 ### Building
 Note: `npm` is required.
 ```
-npm start
+npm install
 npm run-script build
 ```
 
 ### Running server
 ```
-npm run-script start
+npm start
 ```
