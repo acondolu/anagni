@@ -1,186 +1,194 @@
 import {
   AccessControlMode,
-  Block,
+  Statement,
   JoinMessage,
   OkayMessage,
   ErrorMessage,
 } from "../types/messages.js";
 
 export interface Socket {
-  emit: (cmd: string, content: any) => void;
+  emit: (command: string, content: any) => void;
   disconnect: () => void;
   connected: boolean;
 }
 
 const enum SocketState {
+  None,
   Idle,
   Streaming,
   Delete,
 }
 
-type Session = {
+type Replica = {
   id: string;
-  room: string;
+  db: string;
   secret: string;
   socket: Socket | null;
   socketState: SocketState;
-  sentBlocksNo: number;
-  recvBlocksNo: number;
+  sentStatementsNo: number;
+  receivedStatementsNo: number;
 };
 
-type Room = {
-  log: Array<Readonly<Block<any>>>;
-  sessions: Map<string, Session>;
+type Database<T> = {
+  log: Array<Readonly<Statement<T>>>;
+  replicas: Map<string, Replica>;
 };
 
-export class Server {
-  rooms: Map<string, Room>;
-  sockets: Map<Socket, Session>;
+export class Server<T> {
+  dbs: Map<string, Database<T>>;
+  sockets: Map<Socket, Replica>;
 
   constructor() {
-    this.rooms = new Map();
+    this.dbs = new Map();
     this.sockets = new Map();
     Object.seal(this);
   }
 
-  private async sendMoreAux(room: Room, session: Session) {
-    switch (session.socketState) {
-      case SocketState.Idle:
-        throw new Error("Idle state is not possible");
-      case SocketState.Delete:
-        this.freeSocket(session);
-        break;
+  private async sendMore(db: Database<T>, replica: Replica) {
+    switch (replica.socketState) {
       case SocketState.Streaming:
-        let log = room.log;
-        if (log.length > session.sentBlocksNo) {
-          // Send one more message
+        let log = db.log;
+        if (log.length > replica.sentStatementsNo) {
+          // Send one more log
           // Enforce access mode!
-          const b = log[session.sentBlocksNo];
+          const b = log[replica.sentStatementsNo];
           let obscure = false;
           switch (b.mode) {
             case AccessControlMode.Only:
-              obscure = b.accessControlList.indexOf(session.id) == -1;
+              obscure = b.accessControlList.indexOf(replica.id) == -1;
               break;
             case AccessControlMode.Except:
-              obscure = b.accessControlList.indexOf(session.id) != -1;
+              obscure = b.accessControlList.indexOf(replica.id) != -1;
               break;
           }
-          const bCopy: Block<any> = {
+          const bCopy: Statement<T> = {
             index: b.index,
-            session: b.session,
+            replica: b.replica,
             mode: b.mode,
             accessControlList: b.accessControlList,
             payload: obscure ? null : b.payload,
           };
-          session.socket.emit("push", bCopy as Block<any>);
-          session.sentBlocksNo += 1;
+          replica.socket.emit("push", bCopy as Statement<T>);
+          replica.sentStatementsNo += 1;
           // Call again
-          this.sendMoreAux(room, session);
+          this.sendMore(db, replica);
         } else {
-          session.socketState = SocketState.Idle;
+          // No more logs to send, set the state to Idle
+          replica.socketState = SocketState.Idle;
         }
+        return;
+      case SocketState.None:
+      case SocketState.Delete:
+        return;
+      case SocketState.Idle:
+        throw new Error("Idle state is not possible");
     }
   }
 
-  private emitUpdate(room: Room) {
-    for (const id of room.sessions.keys()) {
-      const session = room.sessions.get(id);
-      if (session.socketState == SocketState.Idle) {
-        session.socketState = SocketState.Streaming;
-        this.sendMoreAux(room, session);
+  private emitUpdate(db: Database<T>) {
+    for (const id of db.replicas.keys()) {
+      const replica = db.replicas.get(id);
+      if (replica.socketState == SocketState.Idle) {
+        replica.socketState = SocketState.Streaming;
+        this.sendMore(db, replica);
       }
     }
   }
 
   join(socket: Socket, j: JoinMessage) {
-    let session = this.sockets.get(socket);
+    let replica: Replica = this.sockets.get(socket);
     //
-    if (session) {
+    if (replica) {
       return socket.emit("err", ErrorMessage.AlreadyJoined);
     }
     //
-    let room = this.rooms.get(j.rid);
-    if (!room) {
-      // Create room
-      room = {
+    let db = this.dbs.get(j.db);
+    if (!db) {
+      // Create new database
+      db = {
         log: new Array(),
-        sessions: new Map(),
+        replicas: new Map(),
       };
-      this.rooms.set(j.rid, room);
+      this.dbs.set(j.db, db);
     }
-    // Check if session
-    session = room.sessions.get(j.session);
-    if (session) {
+    // Check if the replica is already existing
+    replica = db.replicas.get(j.replica);
+    if (replica) {
       // Check secret
-      if (session.secret != j.secret || session.room != j.rid) {
+      if (replica.secret != j.secret || replica.db != j.db) {
         return socket.emit("err", ErrorMessage.WrongSession);
       }
-      if (session.socket) {
+      if (replica.socket) {
         // Invalidate previous socket connection
         socket.emit("err", ErrorMessage.OtherConnection);
         socket.disconnect();
       }
-      session.socket = socket;
+      replica.socket = socket;
     } else {
-      // Create new session
-      session = {
-        id: j.session,
-        room: j.rid,
+      // Create new replica
+      replica = {
+        id: j.replica,
+        db: j.db,
         secret: j.secret,
         socket,
         socketState: SocketState.Idle,
-        sentBlocksNo: 0,
-        recvBlocksNo: 0,
-      };
-      room.sessions.set(j.session, session);
+        sentStatementsNo: 0,
+        receivedStatementsNo: 0,
+      } as Replica;
+      db.replicas.set(j.replica, replica);
     }
-    this.sockets.set(socket, session);
-    session.sentBlocksNo = j.recvdBlocksNo;
+    this.sockets.set(socket, replica);
+    replica.sentStatementsNo = j.receivedStatementsNo;
 
     const response: OkayMessage = {
-      totalCount: room.log.length,
-      yourCount: session.recvBlocksNo,
+      totalStatementsCount: db.log.length,
+      yourStatementsCount: replica.receivedStatementsNo,
     };
     return socket.emit("okay", response);
   }
 
-  push(socket: Socket, block: Block<any>) {
-    const session = this.sockets.get(socket);
-    if (!session) {
+  push(socket: Socket, stmt: Statement<T>) {
+    const replica = this.sockets.get(socket);
+    if (!replica) {
       return socket.emit("err", ErrorMessage.MustJoin);
     }
-    const room: Room = this.rooms.get(session.room);
-    room.log.push(
+    const db = this.dbs.get(replica.db);
+    db.log.push(
       Object.freeze({
-        index: room.log.length,
-        session: session.id,
-        mode: block.mode,
-        accessControlList: block.accessControlList,
-        payload: block.payload,
-      })
+        index: db.log.length,
+        replica: replica.id,
+        mode: stmt.mode,
+        accessControlList: stmt.accessControlList,
+        payload: stmt.payload,
+      } as Statement<T>)
     );
-    session.recvBlocksNo += 1;
-    this.emitUpdate(room);
+    replica.receivedStatementsNo += 1;
+    this.emitUpdate(db);
   }
 
   disconnect(socket: Socket, reason: string) {
-    const session = this.sockets.get(socket);
-    if (!session) return;
-    switch (session.socketState) {
+    const replica = this.sockets.get(socket);
+    if (!replica) return;
+    switch (replica.socketState) {
       case SocketState.Idle:
-        this.freeSocket(session);
+        this.freeSocket(replica);
         break;
-      default:
+      case SocketState.Streaming:
         // Will be deleted by this.sendMore
-        session.socketState = SocketState.Delete;
+        replica.socketState = SocketState.Delete;
+        return;
+      case SocketState.Delete:
+        return;
+      case SocketState.None:
+        throw new Error("None state impossible when disconnecting");
     }
   }
 
-  private freeSocket(session: Session) {
-    const socket = session.socket;
+  private freeSocket(replica: Replica) {
+    const socket = replica.socket;
     this.sockets.delete(socket);
+    replica.socketState = SocketState.None;
+    replica.socket = null;
     if (socket.connected) socket.disconnect();
-    session.socket = null;
-    session.socketState = null;
   }
 }

@@ -1,5 +1,5 @@
 import { Control, Auth, Model } from "../client/controller.js";
-import { Block, AccessControlMode } from "../types/messages.js";
+import { Statement, AccessControlMode } from "../types/messages.js";
 import { TTTView, TTTViewImpl } from "./gui.js";
 import { SessionManager } from "../client/session.js";
 
@@ -55,7 +55,10 @@ export class TicTatToe implements Model<TTTMessage> {
     this.playerX = this.playerO = undefined;
   }
 
-  async *init(id: string, replay: number): AsyncGenerator<Block<TTTMessage>> {
+  async *init(
+    id: string,
+    replay: number
+  ): AsyncGenerator<Statement<TTTMessage>> {
     this.id = id;
     this.replay = replay;
     // Introduce yourself, but only if not in replay mode
@@ -65,7 +68,9 @@ export class TicTatToe implements Model<TTTMessage> {
     }
   }
 
-  async *dispatch(b: Block<TTTMessage>): AsyncGenerator<Block<TTTMessage>> {
+  async *dispatch(
+    b: Statement<TTTMessage>
+  ): AsyncGenerator<Statement<TTTMessage>> {
     if (this.state > TTTState.Over) {
       // On game over, ignore all messages that follow
       return;
@@ -75,14 +80,14 @@ export class TicTatToe implements Model<TTTMessage> {
         switch (this.state) {
           case TTTState.IntroX:
             this.playerX = {
-              id: b.session,
+              id: b.replica,
               name: b.payload.name,
             };
             this.state = TTTState.IntroO;
             break;
           case TTTState.IntroO:
             this.playerO = {
-              id: b.session,
+              id: b.replica,
               name: b.payload.name,
             };
             this.state = TTTState.TurnX;
@@ -100,7 +105,7 @@ export class TicTatToe implements Model<TTTMessage> {
           return this.error("Invalid move");
         }
         let symbol: TTTMark =
-          b.session == this.playerX.id ? TTTMark.X : TTTMark.O;
+          b.replica == this.playerX.id ? TTTMark.X : TTTMark.O;
         this.grid[b.payload.i][b.payload.j] = symbol;
         if (this.updateState() > TTTState.Over) {
           switch (this.state) {
@@ -114,7 +119,7 @@ export class TicTatToe implements Model<TTTMessage> {
           return;
         }
         // If replaying:
-        if (b.session == this.id && this.replay > 0) {
+        if (b.replica == this.id && this.replay > 0) {
           this.replay -= 1;
           yield b;
         }
@@ -163,10 +168,10 @@ export class TicTatToe implements Model<TTTMessage> {
     return null;
   }
 
-  private wrapBlock(payload: TTTMessage): Block<TTTMessage> {
+  private wrapBlock(payload: TTTMessage): Statement<TTTMessage> {
     return {
       index: undefined,
-      session: undefined,
+      replica: undefined,
       mode: AccessControlMode.All,
       accessControlList: undefined,
       payload,

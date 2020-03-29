@@ -41,10 +41,10 @@ class BeginPage implements View {
     this.init.style.display = "none";
     console.log(auth);
     (document.getElementById("gameId") as HTMLDivElement).textContent = btoa(
-      auth.room
+      auth.db
     );
     (document.getElementById("sessionId") as HTMLDivElement).textContent = btoa(
-      auth.room + auth.session + auth.secret
+      auth.db + auth.replica + auth.secret
     );
     this.ctrl = new Control(auth, this, new TicTatToe());
     this.ctrl.connect();

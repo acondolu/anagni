@@ -48,8 +48,8 @@ export class SessionManager {
     if (!room) room = this.random();
     const auth: Auth = {
       type: "simple",
-      session,
-      room,
+      replica: session,
+      db: room,
       secret,
       server,
       // additional: ""

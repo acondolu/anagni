@@ -1,5 +1,5 @@
 import {
-  Block,
+  Statement,
   JoinMessage,
   OkayMessage,
   ErrorMessage,
@@ -20,23 +20,23 @@ export interface View {
 }
 
 export interface Model<T> {
-  init: (id: string, replay: number) => AsyncGenerator<Block<T>>;
-  dispatch: Transition<Block<T>, Block<T>>;
+  init: (id: string, replay: number) => AsyncGenerator<Statement<T>>;
+  dispatch: Transition<Statement<T>, Statement<T>>;
 }
 
 interface RefactorThis<T, UserEvent> {
   init: (
     id: string,
     replay: number
-  ) => AsyncGenerator<Sum<Block<T>, UserEvent>>;
-  dispatch: Transition<Block<T>, Sum<Block<T>, UserEvent>>;
+  ) => AsyncGenerator<Sum<Statement<T>, UserEvent>>;
+  dispatch: Transition<Statement<T>, Sum<Statement<T>, UserEvent>>;
 }
 // Transition<UserEvent, Block<T>>
 
 export type Auth = {
   type: "simple";
-  session: string;
-  room: string;
+  replica: string;
+  db: string;
   secret: string;
   server: string; // URL
 };
@@ -62,10 +62,10 @@ export class Control<T> {
   socket: SocketIOClient.Socket;
   socketState: ConnectionState;
 
-  recvBlockPromise: Promise<void>;
-  recvdBlocksNo: number;
-  sentBlocksNo: number;
-  sendQueue: Array<Block<T>>;
+  recvPromise: Promise<void>;
+  receivedStatementsBlocksNo: number;
+  sentStatementsNo: number;
+  sendQueue: Array<Statement<T>>;
 
   sentOne: boolean;
 
@@ -75,7 +75,7 @@ export class Control<T> {
     this.model = model;
     this.socket = undefined;
     this.socketState = ConnectionState.Down;
-    this.recvBlockPromise = undefined;
+    this.recvPromise = undefined;
 
     this.sendQueue = new Array();
     this.sentOne = false;
@@ -92,7 +92,7 @@ export class Control<T> {
   }
 
   /**
-   * Connect, login, and join the room.
+   * Connect, login, and join the database.
    */
   connect() {
     if (this.socket) {
@@ -106,8 +106,8 @@ export class Control<T> {
     this.socket.on("connect", () => {
       this.socketState = ConnectionState.Joining;
       this.socket.emit("join", {
-        session: this.auth.session,
-        rid: this.auth.room,
+        replica: this.auth.replica,
+        db: this.auth.db,
         secret: this.auth.secret,
       } as JoinMessage);
     });
@@ -116,13 +116,13 @@ export class Control<T> {
       this.view.onError(ControllerError.JoinError, reason);
     });
     this.socket.on("okay", (ok: OkayMessage) => {
-      if (ok.yourCount > this.sendQueue.length) {
+      if (ok.yourStatementsCount > this.sendQueue.length) {
         // it must be a replay situation
         if (
-          this.recvBlockPromise ||
+          this.recvPromise ||
           this.sendQueue.length != 0 ||
-          this.recvdBlocksNo != 0 ||
-          this.sentBlocksNo != 0
+          this.receivedStatementsBlocksNo != 0 ||
+          this.sentStatementsNo != 0
         ) {
           this.disconnect();
           this.view.onError(
@@ -130,20 +130,18 @@ export class Control<T> {
             "wrong replay from future (re-init Controller)"
           );
         }
-        this.initModel(ok.yourCount);
+        this.initModel(ok.yourStatementsCount);
       } else {
-        this.sentBlocksNo = ok.yourCount;
-        if (!this.recvBlockPromise) this.initModel();
+        this.sentStatementsNo = ok.yourStatementsCount;
+        if (!this.recvPromise) this.initModel();
       }
       this.view.onConnect();
     });
-    this.socket.on(
-      "push",
-      (block: Block<T>) =>
-        (this.recvBlockPromise = this.recvBlockPromise.then(() =>
-          this.receiveBlock(block)
-        ))
-    );
+    this.socket.on("push", (stmt: Statement<T>) => {
+      this.recvPromise = this.recvPromise.then(() =>
+        this.receiveStatement(stmt)
+      );
+    });
   }
 
   checkSend() {
@@ -151,20 +149,23 @@ export class Control<T> {
       this.sentOne = false;
       return;
     }
-    let can = this.sentBlocksNo < this.sendQueue.length;
+    let can = this.sentStatementsNo < this.sendQueue.length;
     if (can && !this.sentOne) {
-      this.socket.emit("push", this.sendQueue[this.sentBlocksNo] as Block<T>);
+      this.socket.emit(
+        "push",
+        this.sendQueue[this.sentStatementsNo] as Statement<T>
+      );
       this.sentOne = true;
     }
   }
 
   async initModel(c?: number) {
-    if (this.recvBlockPromise) {
+    if (this.recvPromise) {
       throw new Error("The model has already been initialised");
     }
 
-    this.recvBlockPromise = new Promise(async () => {
-      let init = this.model.init(this.auth.session, c);
+    this.recvPromise = new Promise(async () => {
+      let init = this.model.init(this.auth.replica, c);
       let check = true;
       for await (const b of init) {
         this.sendQueue.push(b);
@@ -179,39 +180,42 @@ export class Control<T> {
   /**
    * When a new Block is received
    */
-  private async receiveBlock(block: Block<T>): Promise<void> {
-    // Check that we have all previous blocks
-    if (this.recvdBlocksNo != block.index) {
+  private async receiveStatement(statement: Statement<T>): Promise<void> {
+    // Check that we have all previous statements
+    if (this.receivedStatementsBlocksNo != statement.index) {
       return this.view.onError(ControllerError.ProtocolError);
     }
-    this.recvdBlocksNo += 1;
-    if (block.session == this.auth.session) {
+    this.receivedStatementsBlocksNo += 1;
+    if (statement.replica == this.auth.replica) {
       // Block sent by this user, remove
       // from queue and maybe send another one
       const sendQueueLen = this.sendQueue.length;
-      if (this.sentBlocksNo >= sendQueueLen) {
+      if (this.sentStatementsNo >= sendQueueLen) {
         return this.view.onError(ControllerError.ProtocolError);
       }
-      const block2 = this.sendQueue[this.sentBlocksNo];
+      const stmt2 = this.sendQueue[this.sentStatementsNo];
       // Check that msg == msg2
       // Note: do not compare index attribute
       if (
-        block.mode != block2.mode ||
-        block.accessControlList != block2.accessControlList ||
-        block.payload != block2.payload
+        statement.mode != stmt2.mode ||
+        statement.accessControlList != stmt2.accessControlList ||
+        statement.payload != stmt2.payload
       ) {
         return this.view.onError(
           ControllerError.ProtocolError,
           "received different than sent"
         );
       }
-      this.sentBlocksNo += 1;
-      if (this.sentBlocksNo < sendQueueLen) {
-        this.socket.emit("push", this.sendQueue[this.sentBlocksNo] as Block<T>);
+      this.sentStatementsNo += 1;
+      if (this.sentStatementsNo < sendQueueLen) {
+        this.socket.emit(
+          "push",
+          this.sendQueue[this.sentStatementsNo] as Statement<T>
+        );
       }
     }
     let check = true;
-    for await (const b of this.model.dispatch(block)) {
+    for await (const b of this.model.dispatch(statement)) {
       this.sendQueue.push(b);
       if (check) {
         this.checkSend();

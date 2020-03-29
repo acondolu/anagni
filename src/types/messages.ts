@@ -1,6 +1,5 @@
 export const enum MessageTypes {
   Join,
-  Push,
   Okay,
   Error,
 }
@@ -13,23 +12,23 @@ export const enum AccessControlMode {
 }
 
 export type JoinMessage = {
-  session: string;
-  rid: string;
+  replica: string;
+  db: string;
   secret: string;
-  recvdBlocksNo: number;
+  receivedStatementsNo: number;
 };
 
-export type Block<Content> = {
+export type Statement<T> = {
   index: number;
-  session: string;
+  replica: string;
   mode: AccessControlMode;
   accessControlList: Array<string>;
-  payload: Content;
+  payload: T;
 };
 
 export type OkayMessage = {
-  totalCount: number;
-  yourCount: number;
+  totalStatementsCount: number;
+  yourStatementsCount: number;
 };
 export const enum ErrorMessage {
   AlreadyJoined,

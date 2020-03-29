@@ -1,12 +1,12 @@
 import ServerIO from "socket.io";
 import { Server } from "./server.js";
-import { JoinMessage, Block } from "../types/messages.js";
+import { JoinMessage, Statement } from "../types/messages.js";
 
-export class SocketIOServer extends Server {
-  constructor(port: number = 8080) {
+export class SocketIOServer<T> extends Server<T> {
+  constructor(port: number) {
     super();
 
-    console.log("Starting server, listening on port", port);
+    console.log("Starting Anagni server, listening on port", port);
 
     const io: SocketIO.Server = ServerIO({
       "heartbeat interval": 5,
@@ -14,8 +14,8 @@ export class SocketIOServer extends Server {
     }).listen(port);
 
     io.sockets.on("connection", (socket: SocketIO.Socket) => {
-      socket.on("join", (msg: JoinMessage) => this.join(socket, msg));
-      socket.on("append", (b: Block<any>) => this.push(socket, b));
+      socket.on("join", (j: JoinMessage) => this.join(socket, j));
+      socket.on("append", (b: Statement<any>) => this.push(socket, b));
       socket.on("disconnect", (reason) => this.disconnect(socket, reason));
     });
     Object.freeze(this);

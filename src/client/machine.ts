@@ -1,7 +1,8 @@
 import { Sum } from "../types/common";
 
 /**
- * A state-transition machine, parametrized
+ * A state-transition machine, parametrized by the types of
+ * Events (input) and Actions (output).
  */
 export type Transition<Event, Action> = (e: Event) => AsyncGenerator<Action>;
 
@@ -34,6 +35,22 @@ function composeMachines<EventX, ActionX, EventY, ActionY>(
         }
     }
     yield* process({ where: false, content: e });
+  };
+}
+
+function composeMachines2<EventX, ActionX, EventY>(
+  f: Transition<EventX, ActionX>,
+  g: Transition<EventY, Sum<EventX, ActionX>>
+): Transition<EventY, ActionX> {
+  return async function* process(ea: EventY): AsyncGenerator<ActionX> {
+    for await (const eax of g(ea))
+      switch (eax.where) {
+        case true:
+          yield eax.content;
+          break;
+        case false:
+          yield* f(eax.content);
+      }
   };
 }
 

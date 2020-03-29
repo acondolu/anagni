@@ -3,7 +3,7 @@ import {
   JoinMessage,
   MessageTypes,
   ErrorMessage,
-  Block,
+  Statement,
   AccessControlMode,
 } from "../types/messages.js";
 import { SessionManager } from "../client/session.js";
@@ -29,8 +29,8 @@ class MockSocket implements Socket {
 }
 
 const sm = new SessionManager();
-const session1 = sm.random();
-const session2 = sm.random();
+const replica1 = sm.random();
+const replica2 = sm.random();
 const secret1 = sm.random();
 const secret2 = sm.random();
 const room = sm.random();
@@ -41,21 +41,21 @@ const room = sm.random();
 //   recvdBlocksNo: 0,
 // };
 const validJoinMessage: JoinMessage = {
-  session: session1,
-  rid: room,
+  replica: replica1,
+  db: room,
   secret: secret1,
-  recvdBlocksNo: 0,
+  receivedStatementsNo: 0,
 };
 const validJoinMessage2: JoinMessage = {
-  session: session2,
-  rid: room,
+  replica: replica2,
+  db: room,
   secret: secret2,
-  recvdBlocksNo: 0,
+  receivedStatementsNo: 0,
 };
 
-const validBlock: Block<any> = {
+const validStatement: Statement<any> = {
   index: undefined,
-  session: undefined,
+  replica: undefined,
   mode: AccessControlMode.Except,
   accessControlList: [],
   payload: "hello",
@@ -84,39 +84,39 @@ describe("Server", function () {
     const socket = new MockSocket(function (cmd, content) {
       if (cmd == "err" && content == ErrorMessage.MustJoin) done();
     });
-    srv.push(socket, validBlock);
+    srv.push(socket, validStatement);
   });
 
   it("push one block", function (done) {
     const srv = new Server();
-    const socket = new MockSocket(function (cmd, content) {
+    const socket = new MockSocket(function (cmd, content: Statement<string>) {
       if (cmd == "push") {
         // Warning: not checking accessControlList
         if (
           content.index == 0 &&
-          content.session == validJoinMessage.session &&
-          content.mode == validBlock.mode &&
-          content.payload == validBlock.payload
+          content.replica == validJoinMessage.replica &&
+          content.mode == validStatement.mode &&
+          content.payload == validStatement.payload
         )
           done();
       }
     });
     srv.join(socket, validJoinMessage);
-    srv.push(socket, validBlock);
+    srv.push(socket, validStatement);
   });
 
   it("push n blocks", function (done) {
     const srv = new Server();
     let counter: number = 0;
     const N = 10;
-    const socket = new MockSocket(function (cmd, content) {
+    const socket = new MockSocket(function (cmd, content: Statement<string>) {
       if (cmd == "push") {
         // Warning: not checking accessControlList
         if (
           content.index == counter &&
-          content.session == validJoinMessage.session &&
-          content.mode == validBlock.mode &&
-          content.payload == validBlock.payload
+          content.replica == validJoinMessage.replica &&
+          content.mode == validStatement.mode &&
+          content.payload == validStatement.payload
         ) {
           counter += 1;
           if (counter == N) done();
@@ -126,7 +126,7 @@ describe("Server", function () {
       }
     });
     srv.join(socket, validJoinMessage);
-    for (let i = 0; i < N; i++) srv.push(socket, validBlock);
+    for (let i = 0; i < N; i++) srv.push(socket, validStatement);
   });
 
   it("receive n blocks", function (done) {
@@ -134,14 +134,14 @@ describe("Server", function () {
     let counter: number = 0;
     const N = 10;
     const socket2 = new MockSocket(function () {});
-    const socket = new MockSocket(function (cmd, content) {
+    const socket = new MockSocket(function (cmd, content: Statement<string>) {
       if (cmd == "push") {
         // Warning: not checking accessControlList
         if (
           content.index == counter &&
-          content.session == validJoinMessage2.session &&
-          content.mode == validBlock.mode &&
-          content.payload == validBlock.payload
+          content.replica == validJoinMessage2.replica &&
+          content.mode == validStatement.mode &&
+          content.payload == validStatement.payload
         ) {
           counter += 1;
           if (counter == N) done();
@@ -152,7 +152,7 @@ describe("Server", function () {
     });
     srv.join(socket, validJoinMessage);
     srv.join(socket2, validJoinMessage2);
-    for (let i = 0; i < N; i++) srv.push(socket2, validBlock);
+    for (let i = 0; i < N; i++) srv.push(socket2, validStatement);
   });
 });
 
