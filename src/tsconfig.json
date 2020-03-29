@@ -2,7 +2,9 @@
   "compilerOptions": {
     "target": "ES2018",
     "removeComments": true,
+    "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
+    "jsx": "react",
     "outDir": "../build/",
     "baseUrl": "..",
     "paths": {

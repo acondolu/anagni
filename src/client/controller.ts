@@ -6,6 +6,7 @@ import {
 } from "../types/messages.js";
 
 import { Transition } from "./machine.js";
+import { Sum } from "../types/common.js";
 
 // import io from "socket.io-client";
 
@@ -20,8 +21,15 @@ export interface View {
 
 export interface Model<T> {
   init: (id: string, replay: number) => AsyncGenerator<Block<T>>;
-  step: Transition<Block<T>, Block<T>>;
+  dispatch: Transition<Block<T>, Block<T>>;
 }
+
+interface RefactorThis<T, UserEvent> {
+init: (id: string, replay: number) => AsyncGenerator<Sum<Block<T>, UserEvent>>;
+dispatch: Transition<Block<T>, Sum<Block<T>, UserEvent>>;
+}
+// Transition<UserEvent, Block<T>>
+
 
 export type Auth = {
   type: "simple";
@@ -201,7 +209,7 @@ export class Control<T> {
       }
     }
     let check = true;
-    for await (const b of this.model.step(block)) {
+    for await (const b of this.model.dispatch(block)) {
       this.sendQueue.push(b);
       if (check) {
         this.checkSend();

@@ -5,10 +5,10 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node dist/server/start.js",
+    "start": "node build/server/start.js",
     "build": "make build",
-    "dist": "make dist",
-    "test": "make build test"
+    "test": "make build test",
+    "dist": "make dist"
   },
   "repository": {
     "type": "git",
@@ -21,10 +21,14 @@
   "homepage": "https://github.com/acondolu/anagni#readme",
   "dependencies": {
     "google-closure-compiler": "^20200315.0.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
     "socket.io": "^2.3.0"
   },
   "devDependencies": {
     "@types/mocha": "^7.0.2",
+    "@types/react": "^16.9.27",
+    "@types/react-dom": "^16.9.5",
     "@types/socket.io": "^2.1.4",
     "@types/socket.io-client": "^1.4.32",
     "mocha": "^7.1.1",

@@ -65,7 +65,7 @@ export class TicTatToe implements Model<TTTMessage> {
     }
   }
 
-  async *step(b: Block<TTTMessage>): AsyncGenerator<Block<TTTMessage>> {
+  async *dispatch(b: Block<TTTMessage>): AsyncGenerator<Block<TTTMessage>> {
     if (this.state > TTTState.Over) {
       // On game over, ignore all messages that follow
       return;
