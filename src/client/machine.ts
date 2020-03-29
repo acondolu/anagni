@@ -38,18 +38,20 @@ function composeMachines<EventX, ActionX, EventY, ActionY>(
   };
 }
 
-function composeMachines2<EventX, ActionX, EventY>(
-  f: Transition<EventX, ActionX>,
-  g: Transition<EventY, Sum<EventX, ActionX>>
+export function composeU<EventX, ActionX, EventY>(
+  f: (EventX) => Promise<ActionX | undefined>,
+  g: Transition<EventY, Sum<ActionX, EventX>>
 ): Transition<EventY, ActionX> {
   return async function* process(ea: EventY): AsyncGenerator<ActionX> {
     for await (const eax of g(ea))
       switch (eax.where) {
-        case true:
+        case false:
           yield eax.content;
           break;
-        case false:
-          yield* f(eax.content);
+        case true: {
+          const x = await f(eax.content);
+          if (x) yield x;
+        }
       }
   };
 }
@@ -169,7 +171,7 @@ async function* TextLayer(
 
 // FIXME: remove these:
 // test the types
-let aes = new SimpleAES(null, null);
+let aes = new SimpleAES(null as any, null as any);
 
 let a: Transition<string, string> = composeMachines(idMachine(), JSONLayer);
 let b: Transition<Uint8Array, Uint8Array> = composeMachines(a, TextLayer);

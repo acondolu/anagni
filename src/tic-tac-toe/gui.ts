@@ -1,5 +1,5 @@
-import { ControllerError, View } from "../client/controller.js";
-import { Prod } from "../types/common.js";
+import { TTTMessage } from "./game.js";
+import { Statement, AccessControlMode } from "../types/messages.js";
 
 export interface TTTView {
   // events
@@ -7,12 +7,14 @@ export interface TTTView {
   onMove: (i: number, j: number, value: string) => any;
   onWinner: (winner: number, name: string) => any;
   onDraw: () => any;
-
-  requestName: () => Promise<string>;
-  requestMove: (
-    allowed: Array<Array<boolean>>
-  ) => Promise<Prod<number, number>>;
 }
+
+export type Input =
+  | { _: "name" }
+  | {
+      _: "turn";
+      board: boolean[];
+    };
 
 export class TTTViewImpl implements TTTView {
   grid: HTMLTableElement;
@@ -37,13 +39,23 @@ export class TTTViewImpl implements TTTView {
     throw new Error("STUB");
   }
 
-  // TODO: ask for stuff
-  async requestMove(
-    allowed: Array<Array<boolean>>
-  ): Promise<Prod<number, number>> {
-    throw new Error("STUB"); // TODO:
+  async input(i: Input): Promise<Statement<TTTMessage>> {
+    // TODO: also, use this.makeStatement
+    switch (i._) {
+      case "name":
+        throw new Error("STUB"); // TODO:
+      case "turn":
+        throw new Error("STUB"); // TODO:
+    }
   }
-  async requestName(): Promise<string> {
-    throw new Error("STUB"); // TODO:
+
+  private makeStatement(payload: TTTMessage): Statement<TTTMessage> {
+    return {
+      index: undefined,
+      replica: undefined,
+      mode: AccessControlMode.All,
+      accessControlList: [],
+      payload,
+    };
   }
 }

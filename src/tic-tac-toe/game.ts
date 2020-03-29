@@ -1,7 +1,7 @@
-import { Control, Auth, Model } from "../client/controller.js";
-import { Statement, AccessControlMode } from "../types/messages.js";
-import { TTTView, TTTViewImpl } from "./gui.js";
-import { SessionManager } from "../client/session.js";
+import { Model } from "../client/controller.js";
+import { Statement } from "../types/messages.js";
+import { TTTView, Input } from "./gui.js";
+import { Sum } from "../types/common.js";
 
 const enum TTTMark {
   Null = "",
@@ -31,10 +31,9 @@ export type TTTMessage =
   // Marks the (i,j)-entry of the grid
   | { type: "move"; i: number; j: number; mark: TTTMark };
 
-export class TicTatToe implements Model<TTTMessage> {
+export class TicTatToe implements Model<TTTMessage, Input> {
   // Internal stuff
   id: string;
-  replay: number;
   // View
   view: TTTView;
   // TTT-specific stuff
@@ -43,8 +42,8 @@ export class TicTatToe implements Model<TTTMessage> {
   playerX: Player;
   playerO: Player;
 
-  constructor() {
-    this.view = new TTTViewImpl();
+  constructor(view: TTTView) {
+    this.view = view;
     // Init grid
     this.grid = new Array(3);
     for (let i = 0; i < 3; i++) {
@@ -52,25 +51,18 @@ export class TicTatToe implements Model<TTTMessage> {
       for (let j = 0; j < 3; j++) this.grid[i][j] = TTTMark.Null;
     }
     this.state = TTTState.IntroX;
-    this.playerX = this.playerO = undefined;
+    this.playerX = this.playerO = undefined as any;
   }
 
-  async *init(
-    id: string,
-    replay: number
-  ): AsyncGenerator<Statement<TTTMessage>> {
+  async *init(id: string): AsyncGenerator<Sum<Statement<TTTMessage>, Input>> {
     this.id = id;
-    this.replay = replay;
-    // Introduce yourself, but only if not in replay mode
-    if (this.replay == 0) {
-      let name: string = await this.view.requestName();
-      yield this.wrapBlock({ type: "hello", name: name });
-    }
+    // Ask for name input
+    return { where: true, content: { type: "name" } };
   }
 
   async *dispatch(
     b: Statement<TTTMessage>
-  ): AsyncGenerator<Statement<TTTMessage>> {
+  ): AsyncGenerator<Sum<Statement<TTTMessage>, Input>> {
     if (this.state > TTTState.Over) {
       // On game over, ignore all messages that follow
       return;
@@ -118,40 +110,37 @@ export class TicTatToe implements Model<TTTMessage> {
           }
           return;
         }
-        // If replaying:
-        if (b.replica == this.id && this.replay > 0) {
-          this.replay -= 1;
-          yield b;
-        }
     }
-    if (this.replay > 0) return;
     // Play, if this is your turn
     switch (this.state) {
       case TTTState.TurnO:
         if (this.id == this.playerO.id) {
-          let allowed = this.allowed();
-          const { a, b } = await this.view.requestMove(allowed);
-          yield this.wrapBlock({ type: "move", i: a, j: b, mark: TTTMark.O });
+          yield {
+            where: true,
+            content: { _: "turn", board: this.allowed() },
+          };
         }
         break;
       case TTTState.TurnX:
         if (this.id == this.playerX.id) {
-          let allowed = this.allowed();
-          const { a, b } = await this.view.requestMove(allowed);
-          yield this.wrapBlock({ type: "move", i: a, j: b, mark: TTTMark.X });
+          yield {
+            where: true,
+            content: { _: "turn", board: this.allowed() },
+          };
         }
         break;
     }
   }
 
-  private allowed(): boolean[][] {
+  private allowed(): boolean[] {
     let g: boolean[][] = new Array();
     for (const row of this.grid) {
       const r: boolean[] = new Array();
       g.push(r);
       for (const entry of row) r.push(entry == TTTMark.Null);
     }
-    return g;
+    // FIXME: improtant!
+    return g as any;
   }
 
   private error(reason: string) {
@@ -165,16 +154,6 @@ export class TicTatToe implements Model<TTTMessage> {
    */
   private updateState(): TTTState {
     // TODO: FIXME:
-    return null;
-  }
-
-  private wrapBlock(payload: TTTMessage): Statement<TTTMessage> {
-    return {
-      index: undefined,
-      replica: undefined,
-      mode: AccessControlMode.All,
-      accessControlList: undefined,
-      payload,
-    };
+    return null as any;
   }
 }
