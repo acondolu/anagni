@@ -1,15 +1,9 @@
 import { Model } from "../client/controller.js";
 import { Statement } from "../types/commands.js";
-import { TTTView, InputRequest } from "./gui.js";
-import { Sum, right } from "../types/common.js";
+import { TTTView, InputRequest, Mark } from "./gui.js";
+import { Sum, right as input } from "../types/common.js";
 
-const enum TTTMark {
-  Null = "",
-  X = "X",
-  O = "O",
-}
-
-const enum TTTState {
+const enum GameState {
   IntroX, // Waiting for Player X's name
   IntroO, // Waiting for Player O's name
   TurnX, // X's turn
@@ -25,69 +19,64 @@ type Player = {
   name: string;
 };
 
-export type TTTStatement =
+export type GameEvent =
   // Used for the initial introduction
   | { _: "name"; name: string }
-  // Marks the i-th entry of the grid
-  | { _: "move"; i: number; mark: TTTMark };
+  // Mark the i-th entry of the grid
+  | { _: "move"; i: number; mark: Mark };
 
-export class TicTatToe implements Model<TTTStatement, InputRequest> {
+export class TicTatToe implements Model<GameEvent, InputRequest> {
   // Internal stuff
   id: string;
   // View
   view: TTTView;
   // TTT-specific stuff
-  squares: TTTMark[];
-  state: TTTState;
+  grid: Mark[];
+  state: GameState;
   playerX: Player;
   playerO: Player;
 
   constructor(view: TTTView) {
     this.view = view;
-    // Init grid
-    this.squares = new Array(3);
-    for (let i = 0; i < 9; i++) {
-      this.squares[i] = TTTMark.Null;
-    }
-    this.state = TTTState.IntroX;
+    this.grid = new Array(9).fill(Mark.Null);
+    this.state = GameState.IntroX;
     this.playerX = this.playerO = undefined;
   }
 
   async *init(
     id: string
-  ): AsyncGenerator<Sum<Statement<TTTStatement>, InputRequest>> {
+  ): AsyncGenerator<Sum<Statement<GameEvent>, InputRequest>> {
     // Store the identifier of this replica/player
     this.id = id;
     // Request the name of the human user
-    yield right({ _: "name" });
+    yield input({ _: "name" });
   }
 
   /**
    *
    */
   async *dispatch(
-    b: Statement<TTTStatement>
+    b: Statement<GameEvent>
   ): AsyncGenerator<Sum<never, InputRequest>> {
-    if (this.state > TTTState.Over) {
-      // On game over, ignore all messages that follow
-      return;
+    if (this.state > GameState.Over) {
+      return; // Game Over!
     }
     switch (b.payload._) {
       case "name":
         switch (this.state) {
-          case TTTState.IntroX:
+          case GameState.IntroX:
             this.playerX = {
               id: b.replica,
               name: b.payload.name,
             };
-            this.state = TTTState.IntroO;
+            this.state = GameState.IntroO;
             break;
-          case TTTState.IntroO:
+          case GameState.IntroO:
             this.playerO = {
               id: b.replica,
               name: b.payload.name,
             };
-            this.state = TTTState.TurnX;
+            this.state = GameState.TurnX;
             break;
           default:
             this.error("Late introduction");
@@ -98,43 +87,30 @@ export class TicTatToe implements Model<TTTStatement, InputRequest> {
         break;
       case "move":
         // Check if the move is legal
-        if (this.squares[b.payload.i] != TTTMark.Null) {
+        if (this.grid[b.payload.i] != Mark.Null) {
           return this.error("Invalid move");
         }
-        let symbol: TTTMark =
-          b.replica == this.playerX.id ? TTTMark.X : TTTMark.O;
-        this.squares[b.payload.i] = symbol;
-        if (this.updateState() > TTTState.Over) {
+        let symbol: Mark = b.replica == this.playerX.id ? Mark.X : Mark.O;
+        this.grid[b.payload.i] = symbol;
+        if (this.checkGameOver() > GameState.Over) {
           switch (this.state) {
-            case TTTState.WinX:
+            case GameState.WinX:
               return this.view.onWinner(0, this.playerX.name);
-            case TTTState.WinO:
+            case GameState.WinO:
               return this.view.onWinner(1, this.playerO.name);
-            case TTTState.Draw:
+            case GameState.Draw:
               return this.view.onDraw();
           }
           return;
         }
     }
-    // Play, if this is your turn
-    switch (this.state) {
-      case TTTState.TurnO:
-        if (this.id == this.playerO.id)
-          yield right({ _: "move", board: this.allowed() });
-        break;
-      case TTTState.TurnX:
-        if (this.id == this.playerX.id)
-          yield right({ _: "move", board: this.allowed() });
-        break;
-    }
-  }
-
-  private allowed(): boolean[] {
-    let ret: boolean[] = new Array();
-    for (const s of this.squares) {
-      ret.push(s === TTTMark.Null);
-    }
-    return ret;
+    // Request a "move" input from the user
+    // (in case this is their turn)
+    if (
+      (this.state == GameState.TurnO && this.id == this.playerO.id) ||
+      (this.state == GameState.TurnX && this.id == this.playerX.id)
+    )
+      yield input({ _: "move", grid: this.grid });
   }
 
   private error(reason: string) {
@@ -146,8 +122,9 @@ export class TicTatToe implements Model<TTTStatement, InputRequest> {
    * any player has won
    * @returns The updated game state
    */
-  private updateState(): TTTState {
-    const squares = this.squares;
+  private checkGameOver(): GameState {
+    const squares = this.grid;
+    // Is there a winner?
     const lines: number[][] = [
       [0, 1, 2],
       [3, 4, 5],
@@ -158,25 +135,24 @@ export class TicTatToe implements Model<TTTStatement, InputRequest> {
       [0, 4, 8],
       [2, 4, 6],
     ];
-    let winner: TTTMark = TTTMark.Null;
     for (let i = 0; i < 8; i++) {
       const [a, b, c] = lines[i];
       if (
-        squares[a] != TTTMark.Null &&
+        squares[a] != Mark.Null &&
         squares[a] === squares[b] &&
         squares[b] === squares[c]
       ) {
-        winner = squares[a];
-        break;
+        if (squares[a] == Mark.O) {
+          return (this.state = GameState.WinO);
+        } else {
+          return (this.state = GameState.WinX);
+        }
       }
     }
-    switch (winner) {
-      case TTTMark.Null:
-        return this.state;
-      case TTTMark.O:
-        return (this.state = TTTState.WinO);
-      case TTTMark.X:
-        return (this.state = TTTState.WinX);
-    }
+    // Is the game draw?
+    if (squares.every((m: Mark) => m != Mark.Null))
+      return (this.state = GameState.Draw);
+    // Keep playing!
+    return this.state;
   }
 }
