@@ -25,11 +25,13 @@ export interface Model<T> {
 }
 
 interface RefactorThis<T, UserEvent> {
-init: (id: string, replay: number) => AsyncGenerator<Sum<Block<T>, UserEvent>>;
-dispatch: Transition<Block<T>, Sum<Block<T>, UserEvent>>;
+  init: (
+    id: string,
+    replay: number
+  ) => AsyncGenerator<Sum<Block<T>, UserEvent>>;
+  dispatch: Transition<Block<T>, Sum<Block<T>, UserEvent>>;
 }
 // Transition<UserEvent, Block<T>>
-
 
 export type Auth = {
   type: "simple";
