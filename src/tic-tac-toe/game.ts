@@ -1,4 +1,4 @@
-import { Model } from "../client/controller.js";
+import { Replica } from "../client/follower.js";
 import { Statement } from "../types/commands.js";
 import { TTTView, InputRequest, Mark } from "./gui.js";
 import { Sum, right as input } from "../types/common.js";
@@ -25,7 +25,7 @@ type Player = {
   name: string;
 };
 
-export class TicTatToe implements Model<GameEvent, InputRequest> {
+export class TicTatToe implements Replica<GameEvent, InputRequest> {
   // Internal stuff
   private id: string;
   // View

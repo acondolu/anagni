@@ -1,6 +1,6 @@
 import "../types/commands.js";
 import "../client/machine.js";
-import "../client/controller.js";
+import "../client/follower.js";
 import "../hanabi/model.js";
 import "../hanabi/game.js";
 

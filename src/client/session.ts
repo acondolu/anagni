@@ -1,4 +1,4 @@
-import { Auth } from "./controller.js";
+import { Auth } from "./follower.js";
 import { randomBytes } from "crypto";
 
 class Crypto {
@@ -58,7 +58,7 @@ export class SessionManager {
     if (!room) room = this.random();
     const auth: Auth = {
       type: "simple",
-      replica: session,
+      replicaId: session,
       db: room,
       secret,
       server,

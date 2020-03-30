@@ -1,56 +1,79 @@
-import { Sum } from "../types/common";
+import { Sum, left, right } from "../types/common.js";
+
+type Kleisli<A, B> = (_: A) => AsyncGenerator<B>;
+
+// Give Kleisli a category structure
 
 /**
- * A state-transition machine, parametrized by the types of
- * Events (input) and Actions (output).
+ * The identity morphism in the Kleisli category.
+ * @type Kleisli<A, A>
  */
-export type Transition<Event, Action> = (e: Event) => AsyncGenerator<Action>;
+async function* id<A>(a: A) {
+  yield a;
+}
 
 /**
- * The identity machine: you reap what you sow.
+ * The morphism composition in the Kleisli category.
  */
-function idMachine<T>(): Transition<T, T> {
-  return async function* (e: T) {
-    yield e;
+function compose<A, B, C>(g: Kleisli<B, C>, f: Kleisli<A, B>) {
+  return async function* (a: A) {
+    for await (const b of f(a)) {
+      yield* g(b);
+    }
+  };
+}
+
+// ArrowZero
+
+function zero<A, B>(): Kleisli<A, B> {
+  return async function* (a: A) {};
+}
+
+/**
+ * Lifts a function to the Kleisli arrow.
+ */
+function arr<A, B>(f: (a: A) => Promise<B | undefined>): Kleisli<A, B> {
+  return async function* (a: A): AsyncGenerator<B> {
+    const b: B | undefined = await f(a);
+    if (b) yield b;
   };
 }
 
 /**
  * Composition of machines:
  */
-function composeMachines<EventX, ActionX, EventY, ActionY>(
-  f: Transition<EventX, ActionX>,
-  g: Transition<Sum<EventY, ActionX>, Sum<EventX, ActionY>>
-): Transition<EventY, ActionY> {
-  return async function* (e: EventY) {
-    async function* process(ea: Sum<EventY, ActionX>) {
-      for await (const eax of g(ea))
-        switch (eax.where) {
-          case true:
-            yield eax.content;
-            break;
+function loop<A, B, C, D>(
+  g: Kleisli<C, D>,
+  f: Kleisli<Sum<A, D>, Sum<B, C>>
+): Kleisli<A, B> {
+  return async function* (a: A) {
+    async function* process(ad: Sum<A, D>) {
+      for await (const bc of f(ad))
+        switch (bc.where) {
           case false:
-            for await (const c of f(eax.content))
-              yield* process({ where: true, content: c });
+            yield bc;
+            break;
+          case true:
+            for await (const c of g(bc.content)) yield* process(right(c));
         }
     }
-    yield* process({ where: false, content: e });
+    yield* process(left(a));
   };
 }
 
-export function composeU<EventX, ActionX, EventY>(
-  f: (EventX) => Promise<ActionX | undefined>,
-  g: Transition<EventY, Sum<ActionX, EventX>>
-): Transition<EventY, ActionX> {
-  return async function* process(ea: EventY): AsyncGenerator<ActionX> {
-    for await (const eax of g(ea))
-      switch (eax.where) {
+export function compose3<A, B, C>(
+  g: (_: C) => Promise<B | undefined>,
+  f: Kleisli<A, Sum<B, C>>
+): Kleisli<A, B> {
+  return async function* process(a: A): AsyncGenerator<B> {
+    for await (const bc of f(a))
+      switch (bc.where) {
         case false:
-          yield eax.content;
+          yield bc.content;
           break;
         case true: {
-          const x = await f(eax.content);
-          if (x) yield x;
+          const b = await g(bc.content);
+          if (b) yield b;
         }
       }
   };
@@ -135,16 +158,16 @@ class SimpleAES {
  * The JSON encoding layer.
  */
 
-async function* JSONLayer(
-  e: Sum<string, any>
-): AsyncGenerator<Sum<any, string>> {
+async function* JSONLayer<A>(
+  e: Sum<string, A>
+): AsyncGenerator<Sum<string, A>> {
   switch (e.where) {
     case false: {
-      yield { where: false, content: JSON.parse(e.content) };
+      yield right( JSON.parse(e.content) );
       break;
     }
     case true: {
-      yield { where: true, content: JSON.stringify(e.content) };
+      yield left( JSON.stringify(e.content) );
     }
   }
 }
@@ -155,16 +178,16 @@ async function* JSONLayer(
 
 async function* TextLayer(
   e: Sum<Uint8Array, string>
-): AsyncGenerator<Sum<string, Uint8Array>> {
+): AsyncGenerator<Sum<Uint8Array, string>> {
   switch (e.where) {
     case true: {
       let enc = new TextEncoder();
-      yield { where: true, content: enc.encode(e.content) };
+      yield left(enc.encode(e.content));
       break;
     }
     case false: {
       let dec = new TextDecoder();
-      yield { where: false, content: dec.decode(e.content) };
+      yield right(dec.decode(e.content));
     }
   }
 }
@@ -173,11 +196,14 @@ async function* TextLayer(
 // test the types
 let aes = new SimpleAES(null as any, null as any);
 
-let a: Transition<string, string> = composeMachines(idMachine(), JSONLayer);
-let b: Transition<Uint8Array, Uint8Array> = composeMachines(a, TextLayer);
-let c: Transition<AESPayload, AESPayload> = composeMachines(
-  b,
-  aes.event.bind(aes)
-);
+let a: Kleisli<string, string> = loop(id, JSONLayer);
+let b: Kleisli<Uint8Array, Uint8Array> = loop(a, TextLayer);
+let c: Kleisli<AESPayload, AESPayload> = loop(b, aes.event.bind(aes));
 
 // let d: Transition<string, Uint8Array> = composeMachines(JSONLayer, TextLayer);
+
+/**
+ * A state-transition machine, parametrized by the types of
+ * Events (input) and Actions (output).
+ */
+export type Transition<Event, Action> = Kleisli<Event, Action>;

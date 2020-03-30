@@ -5,7 +5,7 @@ import {
   FailureResponse,
 } from "../types/commands.js";
 
-import { Transition, composeU } from "./machine.js";
+import { Transition, compose3 } from "./machine.js";
 import { Sum } from "../types/common.js";
 
 // import io from "socket.io-client";
@@ -19,14 +19,14 @@ export interface View {
   onDisconnect: () => any;
 }
 
-export interface Model<T, U> {
+export interface Replica<T, U> {
   init: Transition<string, Sum<Statement<T>, U>>;
   dispatch: Transition<Statement<T>, Sum<Statement<T>, U>>;
 }
 
 export type Auth = {
   type: "simple";
-  replica: string;
+  replicaId: string;
   db: string;
   secret: string;
   server: string; // URL
@@ -45,10 +45,10 @@ export const enum ControllerError {
   ProtocolError,
 }
 
-export class Control<T, U> {
+export class Follower<T, U> {
   auth: Auth;
   view: View;
-  model: Model<T, U>;
+  replica: Replica<T, U>;
 
   socket: SocketIOClient.Socket;
   socketState: ConnectionState;
@@ -66,12 +66,12 @@ export class Control<T, U> {
   constructor(
     auth: Auth,
     view: View,
-    model: Model<T, U>,
+    replica: Replica<T, U>,
     input: (ue: U) => Promise<Statement<T>>
   ) {
     this.auth = auth;
     this.view = view;
-    this.model = model;
+    this.replica = replica;
     this.socket = undefined;
     this.socketState = ConnectionState.Down;
     this.recvPromise = undefined;
@@ -108,7 +108,7 @@ export class Control<T, U> {
     socket.on("connect", () => {
       this.socketState = ConnectionState.Joining;
       socket.emit("join", {
-        replica: this.auth.replica,
+        replica: this.auth.replicaId,
         db: this.auth.db,
         secret: this.auth.secret,
       } as AuthRequest);
@@ -170,13 +170,13 @@ export class Control<T, U> {
     }
 
     this.recvPromise = new Promise(async () => {
-      let init = composeU((u: U) => {
+      let init = compose3((u: U) => {
         if (this.replay > 0) {
           this.replay -= 1;
           return;
         }
         return this.input(u);
-      }, this.model.init)(this.auth.replica);
+      }, this.replica.init)(this.auth.replicaId);
       let check = true;
       for await (const b of init) {
         this.sendQueue.push(b);
@@ -197,7 +197,7 @@ export class Control<T, U> {
       return this.view.onError(ControllerError.ProtocolError);
     }
     this.receivedStatementsNo += 1;
-    if (statement.replica == this.auth.replica) {
+    if (statement.replica == this.auth.replicaId) {
       // Block sent by this user, remove
       // from queue and maybe send another one
       const sendQueueLen = this.sendQueue.length;
@@ -227,13 +227,13 @@ export class Control<T, U> {
       }
     }
     let check = true;
-    let dispatch = composeU((u: U): Promise<Statement<T>> => {
+    let dispatch = compose3((u: U): Promise<Statement<T>> => {
       if (this.replay > 0) {
         this.replay -= 1;
         return Promise.resolve(undefined);
       }
       return this.input(u);
-    }, this.model.dispatch)(statement);
+    }, this.replica.dispatch)(statement);
     for await (const b of dispatch) {
       this.sendQueue.push(b);
       if (check) {

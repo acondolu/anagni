@@ -34,9 +34,12 @@ type Database<T> = {
   replicas: Map<string, Replica>;
 };
 
+/**
+ * A simple in-memory single-node Anagni server.
+ */
 export class Server<T> {
-  dbs: Map<string, Database<T>>;
-  sockets: Map<Socket, Replica>;
+  private dbs: Map<string, Database<T>>;
+  private sockets: Map<Socket, Replica>;
 
   constructor() {
     this.dbs = new Map();

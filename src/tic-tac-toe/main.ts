@@ -1,4 +1,4 @@
-import { Auth, Control, View, ControllerError } from "../client/controller.js";
+import { Auth, Follower, View, ControllerError } from "../client/follower.js";
 import { SessionManager } from "../client/session.js";
 import { TicTatToe, GameEvent } from "./game.js";
 import { TTTViewImpl, InputRequest } from "./gui.js";
@@ -8,7 +8,7 @@ class BeginPage implements View {
   connectionState: HTMLSpanElement;
   play: HTMLDivElement;
 
-  ctrl: Control<GameEvent, InputRequest>;
+  ctrl: Follower<GameEvent, InputRequest>;
 
   constructor() {
     // Attach events handlers
@@ -45,10 +45,10 @@ class BeginPage implements View {
       escape(auth.db)
     );
     (document.getElementById("sessionId") as HTMLDivElement).textContent = btoa(
-      escape(auth.db + auth.replica + auth.secret)
+      escape(auth.db + auth.replicaId + auth.secret)
     );
     const view = new TTTViewImpl();
-    this.ctrl = new Control(auth, this, new TicTatToe(view), view.input);
+    this.ctrl = new Follower(auth, this, new TicTatToe(view), view.input);
     this.ctrl.connect();
   }
 
