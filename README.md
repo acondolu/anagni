@@ -13,17 +13,9 @@ Unfortunately this project is in early alpha stage, and it lacks many of the fea
 
 ## Usage
 
-### Building
-Note: `npm` is required.
-```
-npm install
-npm run build
-```
-
-### Running server
-```
-npm start
-```
+- To install npm dependencies: `npm install`
+- To build: `npm run build`
+- To start the server: `npm run server:start`
 
 ### Running example
 ```
