@@ -1,43 +1,53 @@
 import { Auth } from "./controller.js";
+import { randomBytes } from "crypto";
 
-// Problem: node/browser compatibility
 class Crypto {
-  counter: number;
-  constructor() {
-    console.warn("!!! Crypto class implemented in session.ts is a STUB !!!");
-    this.counter = 0;
-  }
-  getRandomValues(a: Uint16Array) {
-    a[0] = this.counter++;
-    // return window.crypto.getRandomValues(a);
+  /**
+   * @param bytesNo The number of bytes
+   */
+  static getRandomBytes(bytesNo: number): Uint16Array {
+    if (typeof window === "undefined") {
+      // Node
+      const buf = randomBytes(bytesNo);
+      return new Uint16Array(
+        buf.buffer,
+        buf.byteOffset,
+        bytesNo / Uint16Array.BYTES_PER_ELEMENT
+      );
+    } else {
+      // Browser
+      const uint16arr = new Uint16Array(
+        bytesNo / Uint16Array.BYTES_PER_ELEMENT
+      );
+      window.crypto.getRandomValues(uint16arr);
+      return uint16arr;
+    }
   }
 }
 
-class Storage {
-  map: Map<string, string>;
-  constructor() {
-    console.warn("!!! Storage class implemented in session.ts is a STUB !!!");
-    this.map = new Map();
-  }
+class LocalStorage {
+  static map: Map<string, string> = new Map();
   getItem(k: string) {
-    return this.map.get(k);
+    if (sessionStorage) {
+      return sessionStorage.getItem(k);
+    } else {
+      return LocalStorage.map.get(k);
+    }
   }
   setItem(k: string, v: string) {
-    this.map.set(k, v);
+    if (sessionStorage) {
+      return sessionStorage.setItem(k, v);
+    } else {
+      LocalStorage.map.set(k, v);
+    }
   }
 }
-const sessionStorage = new Storage();
 
 export class SessionManager {
   static sessionKey = "anagni-session";
-  crypto: Crypto;
-
-  constructor() {
-    this.crypto = new Crypto();
-  }
 
   fromCache(): Auth | null {
-    if (typeof Storage === "undefined") return null;
+    if (typeof LocalStorage === "undefined") return null;
     let result = sessionStorage.getItem(SessionManager.sessionKey);
     return JSON.parse(result);
   }
@@ -59,8 +69,7 @@ export class SessionManager {
   }
 
   random(): string {
-    let arr: Uint16Array = new Uint16Array(4);
-    this.crypto.getRandomValues(arr);
+    const arr: Uint16Array = Crypto.getRandomBytes(8);
     return String.fromCharCode.apply(null, arr);
   }
 
