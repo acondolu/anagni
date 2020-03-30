@@ -163,11 +163,11 @@ async function* JSONLayer<A>(
 ): AsyncGenerator<Sum<string, A>> {
   switch (e.where) {
     case false: {
-      yield right( JSON.parse(e.content) );
+      yield right(JSON.parse(e.content));
       break;
     }
     case true: {
-      yield left( JSON.stringify(e.content) );
+      yield left(JSON.stringify(e.content));
     }
   }
 }
