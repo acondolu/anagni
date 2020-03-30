@@ -17,10 +17,19 @@ Unfortunately this project is in early alpha stage, and it lacks many of the fea
 Note: `npm` is required.
 ```
 npm install
-npm run-script build
+npm run build
 ```
 
 ### Running server
 ```
 npm start
 ```
+
+### Running example
+```
+npm run dist
+npm run serve
+```
+(The second command servs the contents of the project root directory on port 5000.)
+Lastly, simply point your browser to 
+http://localhost:5000/dist/tic-tac-toe/app.html.

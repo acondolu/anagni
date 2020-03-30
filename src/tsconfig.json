@@ -4,6 +4,7 @@
     "removeComments": true,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
+    // "strictNullChecks": true,
     "jsx": "react",
     "outDir": "../build/",
     "baseUrl": "..",

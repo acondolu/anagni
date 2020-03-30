@@ -6,9 +6,11 @@
   "type": "module",
   "scripts": {
     "start": "node build/server/start.js",
+    "tsc:watch": "npx tsc --project src/tsconfig.json --watch",
     "build": "make build",
     "test": "make build test",
-    "dist": "make dist"
+    "dist": "make dist",
+    "serve": "npx serve"
   },
   "repository": {
     "type": "git",
@@ -23,6 +25,7 @@
     "google-closure-compiler": "^20200315.0.0",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
+    "serve": "^11.3.0",
     "socket.io": "^2.3.0"
   },
   "devDependencies": {
