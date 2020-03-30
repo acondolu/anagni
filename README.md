@@ -18,6 +18,7 @@ Unfortunately this project is in early alpha stage, and it lacks many of the fea
 - To start the server: `npm run server:start`
 
 ### Running example
+Run the commands above, and also the following:
 ```
 npm run dist
 npm run serve
