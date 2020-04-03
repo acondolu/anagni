@@ -22,6 +22,8 @@ dist:
 	cp -R build/. dist
 	cp src/hanabi/static/* dist/hanabi/
 	cp src/tic-tac-toe/static/* dist/tic-tac-toe/
+	tail -n +3 build/tic-tac-toe/test.js > dist/tic-tac-toe/test.js
+	tail -n +2 build/client/session.js > dist/client/session.js
 
 clean:
 	rm -rf dist

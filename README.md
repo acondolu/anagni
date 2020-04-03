@@ -8,7 +8,7 @@ Anagni is completely agnostic on the semantics of the log: the statements that a
 
 This architecture is very flexible and can be adapted to various scenarios. This repo also contains an example implementation of [tic-tac-toe](https://en.wikipedia.org/wiki/Tic-tac-toe), the famous paper-and-pencil game. Game events and actions are implemented as statements in the replicated log. As a consequence of the persistence of the log, the state of the game can be resumed at any time in spite of players crashing, by simply replaying the log from the server.
 
-## ☢️ Work-in-progress
+## ⚠️ Work-in-progress
 Unfortunately this project is in early alpha stage, and it lacks many of the features that make it usable by the public. Any help and collaboration are welcome!
 
 ## Usage
