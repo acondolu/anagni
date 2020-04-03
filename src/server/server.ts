@@ -12,19 +12,24 @@ export interface Socket {
   connected: boolean;
 }
 
-const enum SocketState {
-  None,
-  Idle,
-  Streaming,
-  Delete,
-}
+// const enum SocketState {
+//   None,
+//   Idle,
+//   Streaming,
+//   Delete,
+// }
+
+type SocketState =
+  | { _: "none" }
+  | { _: "idle"; socket: Socket }
+  | { _: "streaming"; socket: Socket }
+  | { _: "delete"; socket: Socket };
 
 type Replica = {
   id: string;
   db: string;
   secret: string;
-  socket: Socket | null;
-  socketState: SocketState;
+  state: SocketState;
   sentStatementsNo: number;
   receivedStatementsNo: number;
 };
@@ -48,8 +53,8 @@ export class Server<T> {
   }
 
   private async sendMore(db: Database<T>, replica: Replica) {
-    switch (replica.socketState) {
-      case SocketState.Streaming:
+    switch (replica.state._) {
+      case "streaming":
         let log = db.log;
         if (log.length > replica.sentStatementsNo) {
           // Send one more log
@@ -71,19 +76,23 @@ export class Server<T> {
           //   accessControlList: b.accessControlList,
           //   payload: obscure ? null : b.payload,
           // };
-          replica.socket.emit("push", b);
+          replica.state.socket.emit("push", b);
           replica.sentStatementsNo += 1;
           // Call again
           this.sendMore(db, replica);
         } else {
           // No more logs to send, set the state to Idle
-          replica.socketState = SocketState.Idle;
+          replica.state = {
+            _: "idle",
+            socket: replica.state.socket,
+          };
         }
         return;
-      case SocketState.None:
-      case SocketState.Delete:
+      case "none":
         return;
-      case SocketState.Idle:
+      case "delete":
+        return this.freeSocket(replica, replica.state.socket);
+      case "idle":
         throw new Error("Idle state is not possible");
     }
   }
@@ -91,15 +100,18 @@ export class Server<T> {
   private emitUpdate(db: Database<T>) {
     for (const id of db.replicas.keys()) {
       const replica = db.replicas.get(id);
-      if (replica.socketState == SocketState.Idle) {
-        replica.socketState = SocketState.Streaming;
+      if (replica && replica.state._ == "idle") {
+        replica.state = {
+          _: "streaming",
+          socket: replica.state.socket,
+        };
         this.sendMore(db, replica);
       }
     }
   }
 
   join(socket: Socket, j: AuthRequest) {
-    let replica: Replica = this.sockets.get(socket);
+    let replica = this.sockets.get(socket);
     //
     if (replica) {
       return socket.emit("err", FailureResponse.AlreadyJoined);
@@ -121,20 +133,19 @@ export class Server<T> {
       if (replica.secret != j.secret || replica.db != j.db) {
         return socket.emit("err", FailureResponse.WrongSession);
       }
-      if (replica.socket) {
+      if (replica.state._ == "idle" || replica.state._ == "streaming") {
         // Invalidate previous socket connection
-        socket.emit("err", FailureResponse.OtherConnection);
-        socket.disconnect();
+        replica.state.socket.emit("err", FailureResponse.OtherConnection);
+        replica.state.socket.disconnect();
       }
-      replica.socket = socket;
+      replica.state = { _: "idle", socket: socket };
     } else {
       // Create new replica
       replica = {
         id: j.replica,
         db: j.db,
         secret: j.secret,
-        socket,
-        socketState: SocketState.Idle,
+        state: { _: "idle", socket: socket },
         sentStatementsNo: 0,
         receivedStatementsNo: 0,
       } as Replica;
@@ -156,6 +167,9 @@ export class Server<T> {
       return socket.emit("err", FailureResponse.MustJoin);
     }
     const db = this.dbs.get(replica.db);
+    if (!db) {
+      throw new Error();
+    }
     db.log.push(
       Object.freeze({
         index: db.log.length,
@@ -172,26 +186,27 @@ export class Server<T> {
   disconnect(socket: Socket, reason: string) {
     const replica = this.sockets.get(socket);
     if (!replica) return;
-    switch (replica.socketState) {
-      case SocketState.Idle:
-        this.freeSocket(replica);
+    switch (replica.state._) {
+      case "idle":
+        this.freeSocket(replica, socket);
         break;
-      case SocketState.Streaming:
+      case "streaming":
         // Will be deleted by this.sendMore
-        replica.socketState = SocketState.Delete;
+        replica.state = {
+          _: "delete",
+          socket: socket,
+        };
         return;
-      case SocketState.Delete:
+      case "delete":
         return;
-      case SocketState.None:
+      case "none":
         throw new Error("None state impossible when disconnecting");
     }
   }
 
-  private freeSocket(replica: Replica) {
-    const socket = replica.socket;
+  private freeSocket(replica: Replica, socket: Socket) {
     this.sockets.delete(socket);
-    replica.socketState = SocketState.None;
-    replica.socket = null;
+    replica.state = { _: "none" };
     if (socket.connected) socket.disconnect();
   }
 }

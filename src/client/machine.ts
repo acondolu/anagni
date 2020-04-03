@@ -32,9 +32,9 @@ function zero<A, B>(): Kleisli<A, B> {
 /**
  * Lifts a function to the Kleisli arrow.
  */
-function arr<A, B>(f: (a: A) => Promise<B | undefined>): Kleisli<A, B> {
+function arr<A, B>(f: (a: A) => Promise<B>): Kleisli<A, B> {
   return async function* (a: A): AsyncGenerator<B> {
-    const b: B | undefined = await f(a);
+    const b: B = await f(a);
     if (b) yield b;
   };
 }
@@ -47,11 +47,11 @@ function loop<A, B, C, D>(
   f: Kleisli<Sum<A, D>, Sum<B, C>>
 ): Kleisli<A, B> {
   return async function* (a: A) {
-    async function* process(ad: Sum<A, D>) {
+    async function* process(ad: Sum<A, D>): AsyncGenerator<B> {
       for await (const bc of f(ad))
         switch (bc.where) {
           case false:
-            yield bc;
+            yield bc.content;
             break;
           case true:
             for await (const c of g(bc.content)) yield* process(right(c));
@@ -100,7 +100,7 @@ class SimpleAES {
 
   async *event(
     e: Sum<AESPayload, Uint8Array>
-  ): AsyncGenerator<Sum<Uint8Array, AESPayload>> {
+  ): AsyncGenerator<Sum<AESPayload, Uint8Array>> {
     // let
     switch (e.where) {
       case false: {
@@ -114,7 +114,7 @@ class SimpleAES {
           this.key,
           e.content.data
         );
-        yield { where: false, content: new Uint8Array(c2) };
+        yield { where: true, content: new Uint8Array(c2) };
         break;
       }
       case true: {
@@ -129,7 +129,7 @@ class SimpleAES {
           e.content
         );
         yield {
-          where: true,
+          where: false,
           content: { iv: this.iv, data: new Uint8Array(c) },
         };
       }

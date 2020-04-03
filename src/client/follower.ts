@@ -50,10 +50,10 @@ export class Follower<T, U> {
   view: View;
   replica: Replica<T, U>;
 
-  socket: SocketIOClient.Socket;
+  socket: SocketIOClient.Socket | undefined;
   socketState: ConnectionState;
 
-  recvPromise: Promise<void>;
+  recvPromise: Promise<void> | undefined;
   receivedStatementsNo: number;
   sentStatementsNo: number;
   sendQueue: Array<Statement<T>>;
@@ -75,6 +75,8 @@ export class Follower<T, U> {
     this.socket = undefined;
     this.socketState = ConnectionState.Down;
     this.recvPromise = undefined;
+    this.sentStatementsNo = 0;
+    this.receivedStatementsNo = 0;
 
     this.replay = 0;
     this.input = input;
@@ -173,7 +175,7 @@ export class Follower<T, U> {
       let init = compose3((u: U) => {
         if (this.replay > 0) {
           this.replay -= 1;
-          return;
+          return Promise.resolve(undefined);
         }
         return this.input(u);
       }, this.replica.init.bind(this.replica))(this.auth.replicaId);
@@ -227,7 +229,7 @@ export class Follower<T, U> {
       }
     }
     let check = true;
-    let dispatch = compose3((u: U): Promise<Statement<T>> => {
+    let dispatch = compose3((u: U): Promise<Statement<T> | undefined> => {
       if (this.replay > 0) {
         this.replay -= 1;
         return Promise.resolve(undefined);

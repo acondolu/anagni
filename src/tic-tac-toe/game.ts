@@ -1,6 +1,6 @@
 import { Replica } from "../client/follower.js";
 import { Statement } from "../types/commands.js";
-import { TTTView, InputRequest, Mark } from "./gui.js";
+import { InputRequest, Mark } from "./gui.js";
 import { Sum, right as input } from "../types/common.js";
 
 export type GameEvent =
@@ -9,43 +9,43 @@ export type GameEvent =
   // Mark the i-th entry of the grid
   | { _: "move"; i: number; mark: Mark };
 
-const enum GameState {
-  IntroX, // Waiting for Player X's name
-  IntroO, // Waiting for Player O's name
-  TurnX, // X's turn
-  TurnO, // O's turn
-  Over, // Game over! (Unused state)
-  WinX, // X has won
-  WinO, // O has won
-  Draw, // Nobody wins
-}
+// const enum GameState {
+//   IntroX, // Waiting for Player X's name
+//   IntroO, // Waiting for Player O's name
+//   TurnX, // X's turn
+//   TurnO, // O's turn
+//   Over, // Game over! (Unused state)
+//   WinX, // X has won
+//   WinO, // O has won
+//   Draw, // Nobody wins
+// }
 
 type Player = {
   id: string;
   name: string;
 };
 
-export class TicTatToe implements Replica<GameEvent, InputRequest> {
-  // Internal stuff
-  private id: string;
-  // View
-  private view: TTTView;
-  // TTT-specific stuff
-  private grid: Mark[];
-  private state: GameState;
-  private playerX: Player;
-  private playerO: Player;
+type GameState =
+  | { _: "init" }
+  | { _: "intro X"; id: string }
+  | { _: "intro O"; id: string; playerX: Player }
+  | {
+      _: "turn O" | "turn X";
+      id: string;
+      playerX: Player;
+      playerO: Player;
+      grid: Mark[];
+    }
+  | { _: "over win X" | "over win O" | "over draw" };
 
-  constructor(view: TTTView) {
-    this.view = view;
-    this.grid = new Array(9).fill(Mark.Null);
-    this.state = GameState.IntroX;
-    this.playerX = this.playerO = undefined;
+export class TicTatToe implements Replica<GameEvent, InputRequest> {
+  private state: GameState;
+  constructor() {
+    this.state = { _: "init" };
   }
 
   async *init(id: string): AsyncGenerator<Sum<never, InputRequest>> {
-    // Store the identifier of this replica/player
-    this.id = id;
+    this.state = { _: "intro X", id: id };
     // Request the name of the human user
     yield input({ _: "name" });
   }
@@ -56,25 +56,34 @@ export class TicTatToe implements Replica<GameEvent, InputRequest> {
   async *dispatch(
     b: Statement<GameEvent>
   ): AsyncGenerator<Sum<never, InputRequest>> {
-    if (this.state > GameState.Over) {
+    if (this.state._.startsWith("over")) {
       return; // Game Over!
     }
+    console.log("dispath", b);
     switch (b.payload._) {
       case "name":
-        switch (this.state) {
-          case GameState.IntroX:
-            this.playerX = {
-              id: b.replica,
-              name: b.payload.name,
+        switch (this.state._) {
+          case "intro X":
+            this.state = {
+              _: "intro O",
+              id: this.state.id,
+              playerX: {
+                id: b.replica,
+                name: b.payload.name,
+              },
             };
-            this.state = GameState.IntroO;
             break;
-          case GameState.IntroO:
-            this.playerO = {
-              id: b.replica,
-              name: b.payload.name,
+          case "intro O":
+            this.state = {
+              _: "turn X",
+              id: this.state.id,
+              playerX: this.state.playerX,
+              playerO: {
+                id: b.replica,
+                name: b.payload.name,
+              },
+              grid: new Array(9).fill(Mark.Null),
             };
-            this.state = GameState.TurnX;
             break;
           default:
             this.error("Late introduction");
@@ -84,31 +93,28 @@ export class TicTatToe implements Replica<GameEvent, InputRequest> {
         }
         break;
       case "move":
+        if (this.state._ != "turn X" && this.state._ != "turn O") {
+          throw new Error();
+        }
         // Check if the move is legal
-        if (this.grid[b.payload.i] != Mark.Null) {
+        if (this.state.grid[b.payload.i] != Mark.Null) {
           return this.error("Invalid move");
         }
-        let symbol: Mark = b.replica == this.playerX.id ? Mark.X : Mark.O;
-        this.grid[b.payload.i] = symbol;
-        if (this.checkGameOver() > GameState.Over) {
-          switch (this.state) {
-            case GameState.WinX:
-              return this.view.onWinner(0, this.playerX.name);
-            case GameState.WinO:
-              return this.view.onWinner(1, this.playerO.name);
-            case GameState.Draw:
-              return this.view.onDraw();
-          }
+        let symbol: Mark = b.replica == this.state.playerX.id ? Mark.X : Mark.O;
+        this.state.grid[b.payload.i] = symbol;
+        const newState = this.checkGameOver(this.state.grid);
+        if (newState !== undefined) {
+          this.state = { _: newState };
           return;
         }
     }
     // Request a "move" input from the user
     // (in case this is their turn)
     if (
-      (this.state == GameState.TurnO && this.id == this.playerO.id) ||
-      (this.state == GameState.TurnX && this.id == this.playerX.id)
+      (this.state._ == "turn O" && this.state.id == this.state.playerO.id) ||
+      (this.state._ == "turn X" && this.state.id == this.state.playerX.id)
     )
-      yield input({ _: "move", grid: this.grid });
+      yield input({ _: "move", grid: this.state.grid });
   }
 
   private error(reason: string) {
@@ -120,8 +126,9 @@ export class TicTatToe implements Replica<GameEvent, InputRequest> {
    * any player has won
    * @returns The updated game state
    */
-  private checkGameOver(): GameState {
-    const squares = this.grid;
+  private checkGameOver(
+    squares: Mark[]
+  ): "over win X" | "over win O" | "over draw" | undefined {
     // Is there a winner?
     const lines: number[][] = [
       [0, 1, 2],
@@ -141,16 +148,15 @@ export class TicTatToe implements Replica<GameEvent, InputRequest> {
         squares[b] === squares[c]
       ) {
         if (squares[a] == Mark.O) {
-          return (this.state = GameState.WinO);
+          return "over win O";
         } else {
-          return (this.state = GameState.WinX);
+          return "over win X";
         }
       }
     }
     // Is the game draw?
-    if (squares.every((m: Mark) => m != Mark.Null))
-      return (this.state = GameState.Draw);
+    if (squares.every((m: Mark) => m != Mark.Null)) return "over draw";
     // Keep playing!
-    return this.state;
+    return;
   }
 }

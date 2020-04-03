@@ -4,7 +4,7 @@ import { TicTatToe } from "../tic-tac-toe/game.js";
 
 describe("Tic-tac-toe", function () {
   it("init", async function () {
-    const t = new TicTatToe(undefined);
+    const t = new TicTatToe();
     let initted = false;
     for await (const x of t.init("")) {
       if (initted) assert.fail("Two many init things");

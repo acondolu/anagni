@@ -1,24 +1,14 @@
 import React from "react";
 import ReactDOM from "react-dom";
 
-type SquareProps = { value: number; onClick: () => void };
 type BoardProps = { squares: Array<number>; onClick: (_: number) => void };
-
-function Square(props: SquareProps): JSX.Element {
-  return (
-    <button className="square" onClick={props.onClick}>
-      {props.value}
-    </button>
-  );
-}
 
 class Board extends React.Component<BoardProps, {}> {
   renderSquare(i: number) {
     return (
-      <Square
-        value={this.props.squares[i]}
-        onClick={() => this.props.onClick(i)}
-      />
+      <button className="square" onClick={() => this.props.onClick(i)}>
+        {this.props.squares[i]}
+      </button>
     );
   }
 
@@ -46,7 +36,7 @@ class Board extends React.Component<BoardProps, {}> {
 }
 
 export class Game extends React.Component<any, any> {
-  constructor(props) {
+  constructor(props: any) {
     super(props);
     this.state = {
       history: [
@@ -59,7 +49,7 @@ export class Game extends React.Component<any, any> {
     };
   }
 
-  handleClick(i) {
+  handleClick(i: number) {
     const history = this.state.history.slice(0, this.state.stepNumber + 1);
     const current = history[history.length - 1];
     const squares = current.squares.slice();
@@ -78,7 +68,7 @@ export class Game extends React.Component<any, any> {
     });
   }
 
-  jumpTo(step) {
+  jumpTo(step: number) {
     this.setState({
       stepNumber: step,
       xIsNext: step % 2 === 0,
@@ -90,7 +80,7 @@ export class Game extends React.Component<any, any> {
     const current = history[this.state.stepNumber];
     const winner = "calculateWinner(current.squares)";
 
-    const moves = history.map((step, move) => {
+    const moves = history.map((step: number, move: number) => {
       const desc = move ? "Go to move #" + move : "Go to game start";
       return (
         <li key={move}>

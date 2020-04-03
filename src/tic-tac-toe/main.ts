@@ -8,11 +8,11 @@ class BeginPage implements View {
   connectionState: HTMLSpanElement;
   play: HTMLDivElement;
 
-  ctrl: Follower<GameEvent, InputRequest>;
+  ctrl: Follower<GameEvent, InputRequest> | undefined;
 
   constructor() {
     // Attach events handlers
-    document.getElementById("newSessionBtn").onclick = () => {
+    (document.getElementById("newSessionBtn") as any).onclick = () => {
       const server = (document.getElementById(
         "serverInput"
       ) as HTMLInputElement).value;
@@ -48,7 +48,12 @@ class BeginPage implements View {
       escape(auth.db + auth.replicaId + auth.secret)
     );
     const view = new TTTViewImpl();
-    this.ctrl = new Follower(auth, this, new TicTatToe(view), view.input.bind(view));
+    this.ctrl = new Follower(
+      auth,
+      this,
+      new TicTatToe(),
+      view.input.bind(view)
+    );
     this.ctrl.connect();
   }
 

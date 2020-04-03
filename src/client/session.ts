@@ -46,9 +46,10 @@ class LocalStorage {
 export class SessionManager {
   static sessionKey = "anagni-session";
 
-  fromCache(): Auth | null {
-    if (typeof LocalStorage === "undefined") return null;
+  fromCache(): Auth | undefined {
+    if (typeof LocalStorage === "undefined") return;
     let result = sessionStorage.getItem(SessionManager.sessionKey);
+    if (!result) return;
     return JSON.parse(result);
   }
 
@@ -70,10 +71,10 @@ export class SessionManager {
 
   random(): string {
     const arr: Uint16Array = Crypto.getRandomBytes(8);
-    return String.fromCharCode.apply(null, arr);
+    return String.fromCharCode.apply(null, Array.from(arr));
   }
 
-  str2ab(str) {
+  str2ab(str: string) {
     // TODO: TAKEN from google, refactor
     var buf = new ArrayBuffer(str.length * 2); // 2 bytes for each char
     var bufView = new Uint16Array(buf);

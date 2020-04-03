@@ -13,7 +13,7 @@ class Model {
 
   log(e: Log): AsyncGenerator<Log> {
     // must not use this.emit
-    return null;
+    return null as any;
   }
 
   // possible moves
