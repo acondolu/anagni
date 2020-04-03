@@ -176,7 +176,7 @@ export class Follower<T, U> {
           return;
         }
         return this.input(u);
-      }, this.replica.init)(this.auth.replicaId);
+      }, this.replica.init.bind(this.replica))(this.auth.replicaId);
       let check = true;
       for await (const b of init) {
         this.sendQueue.push(b);
@@ -233,7 +233,7 @@ export class Follower<T, U> {
         return Promise.resolve(undefined);
       }
       return this.input(u);
-    }, this.replica.dispatch)(statement);
+    }, this.replica.dispatch.bind(this.replica))(statement);
     for await (const b of dispatch) {
       this.sendQueue.push(b);
       if (check) {

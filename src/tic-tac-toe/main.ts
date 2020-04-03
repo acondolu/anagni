@@ -48,7 +48,7 @@ class BeginPage implements View {
       escape(auth.db + auth.replicaId + auth.secret)
     );
     const view = new TTTViewImpl();
-    this.ctrl = new Follower(auth, this, new TicTatToe(view), view.input);
+    this.ctrl = new Follower(auth, this, new TicTatToe(view), view.input.bind(view));
     this.ctrl.connect();
   }
 
