@@ -1,6 +1,6 @@
 import { Auth, Follower, View, ControllerError } from "../client/follower.js";
 import { SessionManager } from "../client/session.js";
-import { TicTatToe, GameEvent } from "./game.js";
+import { TicTacToe, GameEvent } from "./game.js";
 import { TTTViewImpl, InputRequest } from "./gui.js";
 
 class BeginPage implements View {
@@ -51,7 +51,7 @@ class BeginPage implements View {
     this.ctrl = new Follower(
       auth,
       this,
-      new TicTatToe(),
+      new TicTacToe(),
       view.input.bind(view)
     );
     this.ctrl.connect();

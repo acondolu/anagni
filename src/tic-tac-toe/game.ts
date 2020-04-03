@@ -36,9 +36,9 @@ type GameState =
       playerO: Player;
       grid: Mark[];
     }
-  | { _: "over win X" | "over win O" | "over draw" };
+  | { _: "over"; winner: Mark };
 
-export class TicTatToe implements Replica<GameEvent, InputRequest> {
+export class TicTacToe implements Replica<GameEvent, InputRequest> {
   private state: GameState;
   constructor() {
     this.state = { _: "init" };
@@ -102,9 +102,9 @@ export class TicTatToe implements Replica<GameEvent, InputRequest> {
         }
         let symbol: Mark = b.replica == this.state.playerX.id ? Mark.X : Mark.O;
         this.state.grid[b.payload.i] = symbol;
-        const newState = this.checkGameOver(this.state.grid);
-        if (newState !== undefined) {
-          this.state = { _: newState };
+        const winner = TicTacToe.checkGameOver(this.state.grid);
+        if (winner !== undefined) {
+          this.state = { _: "over", winner };
           return;
         }
     }
@@ -126,9 +126,7 @@ export class TicTatToe implements Replica<GameEvent, InputRequest> {
    * any player has won
    * @returns The updated game state
    */
-  private checkGameOver(
-    squares: Mark[]
-  ): "over win X" | "over win O" | "over draw" | undefined {
+  static checkGameOver(squares: Mark[]): Mark | undefined {
     // Is there a winner?
     const lines: number[][] = [
       [0, 1, 2],
@@ -148,14 +146,14 @@ export class TicTatToe implements Replica<GameEvent, InputRequest> {
         squares[b] === squares[c]
       ) {
         if (squares[a] == Mark.O) {
-          return "over win O";
+          return Mark.O;
         } else {
-          return "over win X";
+          return Mark.X;
         }
       }
     }
     // Is the game draw?
-    if (squares.every((m: Mark) => m != Mark.Null)) return "over draw";
+    if (squares.every((m: Mark) => m != Mark.Null)) return Mark.Null;
     // Keep playing!
     return;
   }
