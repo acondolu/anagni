@@ -145,6 +145,7 @@ export class Follower<T, U> {
     });
     socket.on("push", (stmt: Statement<T>) => {
       if (!this.recvPromise) throw new Error();
+      console.log("new statement", JSON.stringify(stmt));
       this.recvPromise = this.recvPromise.then(() =>
         this.receiveStatement(stmt)
       );

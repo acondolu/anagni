@@ -25,12 +25,13 @@ type Player = {
   name: string;
 };
 
-type GameState =
+export type GameState =
   | { _: "init" }
   | { _: "intro X"; id: string }
   | { _: "intro O"; id: string; playerX: Player }
   | {
-      _: "turn O" | "turn X";
+      _: "turn";
+      player: Mark;
       id: string;
       playerX: Player;
       playerO: Player;
@@ -75,7 +76,8 @@ export class TicTacToe implements Replica<GameEvent, InputRequest> {
             break;
           case "intro O":
             this.state = {
-              _: "turn X",
+              _: "turn",
+              player: Mark.X,
               id: this.state.id,
               playerX: this.state.playerX,
               playerO: {
@@ -93,7 +95,7 @@ export class TicTacToe implements Replica<GameEvent, InputRequest> {
         }
         break;
       case "move":
-        if (this.state._ != "turn X" && this.state._ != "turn O") {
+        if (this.state._ != "turn") {
           throw new Error();
         }
         // Check if the move is legal
@@ -110,9 +112,10 @@ export class TicTacToe implements Replica<GameEvent, InputRequest> {
     }
     // Request a "move" input from the user
     // (in case this is their turn)
+    if (this.state._ != "turn") return;
     if (
-      (this.state._ == "turn O" && this.state.id == this.state.playerO.id) ||
-      (this.state._ == "turn X" && this.state.id == this.state.playerX.id)
+      (this.state.player == Mark.O && this.state.id == this.state.playerO.id) ||
+      (this.state.player == Mark.X && this.state.id == this.state.playerX.id)
     )
       yield input({ _: "move", grid: this.state.grid });
   }

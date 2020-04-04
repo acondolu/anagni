@@ -1,7 +1,7 @@
 import { Auth, Follower, View, ControllerError } from "../client/follower.js";
 import { SessionManager } from "../client/session.js";
 import { TicTacToe, GameEvent } from "./game.js";
-import { TTTViewImpl, InputRequest } from "./gui.js";
+import { TTTGUI, InputRequest } from "./gui.js";
 
 class BeginPage implements View {
   init: HTMLDivElement;
@@ -47,7 +47,7 @@ class BeginPage implements View {
     (document.getElementById("sessionId") as HTMLDivElement).textContent = btoa(
       escape(auth.db + auth.replicaId + auth.secret)
     );
-    const view = new TTTViewImpl();
+    const view = new TTTGUI();
     this.ctrl = new Follower(
       auth,
       this,
