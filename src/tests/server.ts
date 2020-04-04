@@ -55,6 +55,7 @@ const validJoinMessage2: AuthRequest = {
 const validStatement: Statement<any> = {
   index: undefined as any,
   replica: undefined as any,
+  time: undefined as any,
   // mode: AccessControlMode.Except,
   // accessControlList: [],
   payload: "hello",

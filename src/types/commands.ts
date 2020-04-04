@@ -15,6 +15,7 @@ export type AuthRequest = {
 export type Statement<T> = {
   index: number;
   replica: string;
+  time: number;
   // mode: AccessControlMode;
   // accessControlList: Array<string>;
   payload: T;

@@ -97,6 +97,7 @@ export class TTTGUI {
     return {
       index: (undefined as unknown) as any,
       replica: (undefined as unknown) as any,
+      time: (undefined as unknown) as any,
       // mode: AccessControlMode.All,
       // accessControlList: [],
       payload,

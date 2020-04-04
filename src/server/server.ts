@@ -174,10 +174,11 @@ export class Server<T> {
       Object.freeze({
         index: db.log.length,
         replica: replica.id,
+        time: new Date().getTime(),
+        payload: stmt.payload,
         // mode: stmt.mode,
         // accessControlList: stmt.accessControlList,
-        payload: stmt.payload,
-      } as Statement<T>)
+      })
     );
     replica.receivedStatementsNo += 1;
     this.emitUpdate(db);
