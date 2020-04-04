@@ -28,9 +28,15 @@ export class TTTGUI {
     this.grid = document.getElementById("grid") as HTMLTableElement;
     this.grid.style.display = "none";
     this.state = document.getElementById("gameState") as HTMLParagraphElement;
-    this.nameInputDiv = document.getElementById("playerNameInputDiv") as HTMLDivElement;
-    this.playerXname = document.getElementById("playerXname") as HTMLSpanElement;
-    this.playerOname = document.getElementById("playerOname") as HTMLSpanElement;
+    this.nameInputDiv = document.getElementById(
+      "playerNameInputDiv"
+    ) as HTMLDivElement;
+    this.playerXname = document.getElementById(
+      "playerXname"
+    ) as HTMLSpanElement;
+    this.playerOname = document.getElementById(
+      "playerOname"
+    ) as HTMLSpanElement;
     this.state.style.display = "";
   }
 
