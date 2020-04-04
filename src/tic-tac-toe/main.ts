@@ -1,14 +1,19 @@
-import { Auth, Follower, View, ControllerError } from "../client/follower.js";
+import {
+  Auth,
+  Follower,
+  ConnectionInterface,
+  ControllerError,
+} from "../client/follower.js";
 import { SessionManager } from "../client/session.js";
-import { TicTacToe, GameEvent } from "./game.js";
-import { TTTGUI, InputRequest } from "./gui.js";
+import { TicTacToe, GameEvent, GameState } from "./game.js";
+import { TTTGUI, InputRequest, input } from "./gui.js";
 
-class BeginPage implements View {
+class BeginPage implements ConnectionInterface {
   init: HTMLDivElement;
   connectionState: HTMLSpanElement;
   play: HTMLDivElement;
 
-  ctrl: Follower<GameEvent, InputRequest> | undefined;
+  ctrl: Follower<GameState, GameEvent, InputRequest> | undefined;
 
   constructor() {
     // Attach events handlers
@@ -47,13 +52,8 @@ class BeginPage implements View {
     (document.getElementById("sessionId") as HTMLDivElement).textContent = btoa(
       escape(auth.db + auth.replicaId + auth.secret)
     );
-    const view = new TTTGUI();
-    this.ctrl = new Follower(
-      auth,
-      this,
-      new TicTacToe(),
-      view.input.bind(view)
-    );
+    const ui = new TTTGUI();
+    this.ctrl = new Follower(auth, this, new TicTacToe(), ui, input);
     this.ctrl.connect();
   }
 

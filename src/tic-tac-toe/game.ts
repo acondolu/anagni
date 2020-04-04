@@ -39,8 +39,8 @@ export type GameState =
     }
   | { _: "over"; winner: Mark };
 
-export class TicTacToe implements Replica<GameEvent, InputRequest> {
-  private state: GameState;
+export class TicTacToe implements Replica<GameState, GameEvent, InputRequest> {
+  state: GameState;
   constructor() {
     this.state = { _: "init" };
   }

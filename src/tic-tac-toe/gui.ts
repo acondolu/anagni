@@ -1,5 +1,6 @@
 import { GameEvent, GameState } from "./game.js";
 import { Statement } from "../types/commands.js";
+import { UI } from "../client/follower.js";
 // import { mk } from "./test.js";
 
 export const enum Mark {
@@ -15,7 +16,8 @@ export type InputRequest =
       grid: Mark[];
     };
 
-export class TTTGUI {
+export class TTTGUI implements UI<GameState> {
+  container: HTMLDivElement;
   grid: HTMLTableElement;
   state: HTMLParagraphElement;
   nextMove: Promise<number> | undefined;
@@ -24,7 +26,7 @@ export class TTTGUI {
   playerOname: HTMLSpanElement;
 
   constructor() {
-    // mk();
+    this.container = document.getElementById("play") as HTMLDivElement;
     this.grid = document.getElementById("grid") as HTMLTableElement;
     this.grid.style.display = "none";
     this.state = document.getElementById("gameState") as HTMLParagraphElement;
@@ -38,6 +40,14 @@ export class TTTGUI {
       "playerOname"
     ) as HTMLSpanElement;
     this.state.style.display = "";
+  }
+
+  async show() {
+    this.container.style.display = "block";
+  }
+
+  async hide() {
+    this.container.style.display = "none";
   }
 
   render(state: GameState) {
@@ -77,36 +87,36 @@ export class TTTGUI {
   }
 
   // (this.grid.rows.item(i / 3) as any).cells.item(i % 3).innerText = value;
+}
 
-  async input(i: InputRequest): Promise<Statement<GameEvent>> {
-    console.log("TTT GUI: input requested", i);
-    switch (i._) {
-      case "name":
-        // console.log("STUB", i);
-        return this.makeStatement({
-          _: "name",
-          name: prompt("Name") as string,
-        });
-        // throw new Error("STUB"); // TODO:
-        break;
-      case "move":
-        // throw new Error("STUB"); // TODO:
-        return this.makeStatement({
-          _: "move",
-          i: parseInt(prompt("Move") as string),
-          mark: (undefined as unknown) as Mark,
-        });
-    }
+export async function input(i: InputRequest): Promise<Statement<GameEvent>> {
+  console.log("TTT GUI: input requested", i);
+  switch (i._) {
+    case "name":
+      // console.log("STUB", i);
+      return makeStatement({
+        _: "name",
+        name: prompt("Name") as string,
+      });
+      // throw new Error("STUB"); // TODO:
+      break;
+    case "move":
+      // throw new Error("STUB"); // TODO:
+      return makeStatement({
+        _: "move",
+        i: parseInt(prompt("Move") as string),
+        mark: (undefined as unknown) as Mark,
+      });
   }
+}
 
-  private makeStatement(payload: GameEvent): Statement<GameEvent> {
-    return {
-      index: (undefined as unknown) as any,
-      replica: (undefined as unknown) as any,
-      time: (undefined as unknown) as any,
-      // mode: AccessControlMode.All,
-      // accessControlList: [],
-      payload,
-    };
-  }
+function makeStatement(payload: GameEvent): Statement<GameEvent> {
+  return {
+    index: (undefined as unknown) as any,
+    replica: (undefined as unknown) as any,
+    time: (undefined as unknown) as any,
+    // mode: AccessControlMode.All,
+    // accessControlList: [],
+    payload,
+  };
 }

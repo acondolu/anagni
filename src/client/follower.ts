@@ -8,9 +8,7 @@ import {
 import { Transition, compose3 } from "./machine.js";
 import { Sum } from "../types/common.js";
 
-// import io from "socket.io-client";
-
-export interface View {
+export interface ConnectionInterface {
   /**
    * A fatal error. Disconnects.
    */
@@ -19,7 +17,14 @@ export interface View {
   onDisconnect: () => any;
 }
 
-export interface Replica<T, U> {
+export interface UI<S> {
+  show: () => any;
+  hide: () => any;
+  render: (state: S) => any;
+}
+
+export interface Replica<S, T, U> {
+  state: S;
   init: Transition<string, Sum<Statement<T>, U>>;
   dispatch: Transition<Statement<T>, Sum<Statement<T>, U>>;
 }
@@ -45,10 +50,10 @@ export const enum ControllerError {
   ProtocolError,
 }
 
-export class Follower<T, U> {
+export class Follower<S, T, U> {
   auth: Auth;
-  view: View;
-  replica: Replica<T, U>;
+  view: ConnectionInterface;
+  replica: Replica<S, T, U>;
 
   socket: SocketIOClient.Socket | undefined;
   socketState: ConnectionState;
@@ -60,18 +65,21 @@ export class Follower<T, U> {
 
   sentOne: boolean;
 
-  input: (ue: U) => Promise<Statement<T>>;
+  ui: UI<S>;
+  input: (u: U) => Promise<Statement<T>>;
   replay: number;
 
   constructor(
     auth: Auth,
-    view: View,
-    replica: Replica<T, U>,
-    input: (ue: U) => Promise<Statement<T>>
+    view: ConnectionInterface,
+    replica: Replica<S, T, U>,
+    ui: UI<S>,
+    input: (u: U) => Promise<Statement<T>>
   ) {
     this.auth = auth;
     this.view = view;
     this.replica = replica;
+    this.ui = ui;
     this.socket = undefined;
     this.socketState = ConnectionState.Down;
     this.recvPromise = undefined;
@@ -178,6 +186,7 @@ export class Follower<T, U> {
           this.replay -= 1;
           return Promise.resolve(undefined);
         }
+        this.ui.render(this.replica.state);
         return this.input(u);
       }, this.replica.init.bind(this.replica))(this.auth.replicaId);
       let check = true;
@@ -244,5 +253,6 @@ export class Follower<T, U> {
         check = false;
       }
     }
+    this.ui.render(this.replica.state);
   }
 }
