@@ -1,4 +1,4 @@
-import { Server, Socket } from "../server/server.js";
+import { Server } from "../server/server.js";
 import {
   AuthRequest,
   FailureResponse,
@@ -9,6 +9,7 @@ import { SessionManager } from "../client/session.js";
 
 // const _ = new SocketIOServer();
 import "mocha";
+import { Socket } from "../types/socket.js";
 
 class MockSocket implements Socket {
   connected: boolean;
@@ -20,6 +21,9 @@ class MockSocket implements Socket {
   }
   emit(cmd: string, content: any) {
     this.callback(cmd, content);
+  }
+  on() {
+    throw new Error("N/A");
   }
 
   disconnect() {

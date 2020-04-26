@@ -7,6 +7,7 @@ import {
 
 import { Transition, compose3 } from "./machine.js";
 import { Sum } from "../types/common.js";
+import { Socket } from "../types/socket.js";
 
 export interface ConnectionInterface {
   /**
@@ -50,12 +51,16 @@ export const enum ControllerError {
   ProtocolError,
 }
 
+interface Connector {
+  connect: (uri: string) => Socket;
+}
+
 export class Follower<S, T, U> {
   auth: Auth;
   view: ConnectionInterface;
   replica: Replica<S, T, U>;
 
-  socket: SocketIOClient.Socket | undefined;
+  socket: Socket | undefined;
   socketState: ConnectionState;
 
   recvPromise: Promise<void> | undefined;
@@ -105,11 +110,11 @@ export class Follower<S, T, U> {
   /**
    * Connect, login, and join the database.
    */
-  connect() {
+  connect(connector: Connector = io) {
     if (this.socket) {
       return this.view.onError(ControllerError.AlreadyConnect);
     }
-    const socket = io.connect(this.auth.server);
+    const socket = connector.connect(this.auth.server);
     this.socket = socket;
     socket.on("error", (reason: string) => {
       this.view.onError(ControllerError.SocketError, reason);

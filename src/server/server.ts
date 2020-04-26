@@ -5,12 +5,7 @@ import {
   WelcomeResponse,
   FailureResponse,
 } from "../types/commands.js";
-
-export interface Socket {
-  emit: (command: string, content: any) => void;
-  disconnect: () => void;
-  connected: boolean;
-}
+import { Socket } from "../types/socket.js";
 
 // const enum SocketState {
 //   None,
